@@ -1,0 +1,7 @@
+name = "ModeMatching"
+uuid = "98b02015-4077-4e65-a087-61b15b604d47"
+authors = ["David Leppla-Weber <david.leppla-weber@desy.de>"]
+version = "0.1.0"
+
+[deps]
+HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
