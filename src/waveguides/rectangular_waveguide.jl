@@ -2,14 +2,6 @@
 ε0 = 8.8541878128e-12
 c = 299792458
 
-struct TEMode <: Mode
-    m::Integer
-    n::Integer
-end
-struct TMMode <: Mode
-    m::Integer
-    n::Integer
-end
 struct RectangularWaveguide <: Waveguide
     a::AbstractFloat
     b::AbstractFloat
@@ -26,6 +18,8 @@ struct RectangularWaveguide <: Waveguide
         new(a, b, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y)
     end
 end
+
+k_c(g::RectangularWaveguide, mode::Mode) = sqrt((mode.m * π/g.a)^2 + (mode.n * π/g.b)^2)
 
 "Returns (lower bound, higher bound, mask) of the intersection between two waveguides"
 function intersect(g1::RectangularWaveguide, g2::RectangularWaveguide)
@@ -97,16 +91,16 @@ function Ey2Ex(g::RectangularWaveguide, mode::Mode, lb, hb)
     (m, n, a, b, x0, y0, ai, af, bi, bf)
 end
 
-# Analytical modes, for rectangular waveguides, the spatial parts of TE and TM modes are
-# identical
-function int_ExHy(g1::RectangularWaveguide, g2::RectangularWaveguide, mode1::Mode, mode2::Mode)
+"Analytical modes - for rectangular waveguides, the spatial parts of TE and TM modes are identical"
+function int_ExHy(g1::RectangularWaveguide, g2::RectangularWaveguide, z, mode1::Mode, mode2::Mode)
     lb = [maximum([g1.x, g2.x]), maximum([g1.y, g2.y])]
     hb = [minimum([g1.a+g1.x, g2.a+g2.x]), minimum([g1.b+g1.y, g2.b+g2.y])]
     a1 = g1.a; b1 = g1.b; a2 = g2.a; b2 = g2.b
     m1 = mode1.m; n1 = mode1.n; m2 = mode2.m; n2 = mode2.n
-    integral_ExHy(a1, a2, b1, b2, g1.x, g2.x, g1.y, g2.y, m1, m2, n1, n2, lb[1], hb[1], lb[2], hb[2])
+    integral_ExHy(a1, a2, b1, b2, g1.x, g2.x, g1.y, g2.y, m1, m2, n1, n2,
+                  lb[1], hb[1], lb[2], hb[2])
 end
-function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, mode1::Mode, mode2::Mode)
+function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, z, mode1::Mode, mode2::Mode)
     lb = [maximum([g1.x, g2.x]), maximum([g1.y, g2.y])]
     hb = [minimum([g1.a+g1.x, g2.a+g2.x]), minimum([g1.b+g1.y, g2.b+g2.y])]
     # Switching the parameters around allows for a single analytical integral
@@ -116,14 +110,7 @@ function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, mode1::Mod
     integral_ExHy(a1, a2, b1, b2, x1, x2, y1, y2, m1, m2, n1, n2, ai1, af1, bi1, bf1)
 end
 
-j = -1
-
-k_c(g::RectangularWaveguide, mode::Mode) = k_c(g, mode.m, mode.n)
-k_c(g::RectangularWaveguide, m, n) = sqrt((m * π / g.a)^2 + (n * π / g.b)^2)
-β(g::Waveguide, mode::Mode) = β(g, mode.m, mode.n)
-function β(g::RectangularWaveguide, m, n)
-    (sqrt(Complex(g.k^2 - k_c(g, m, n)^2)))
-end
+j = 1im
 
 #=
  Split modes into orthogonal (frequency independent), frequency dependent and z dependent
@@ -132,13 +119,11 @@ end
  independent of the coordinates.
 =#
 
-z_dep(g::RectangularWaveguide, mode::Mode, z) = exp(1im * β(g, mode) * z)
-
 #
 # TE Modes
 #
 "Spatial components of E field of the TE modes in a rectangular waveguide"
-E_spatial(g::RectangularWaveguide, x, y, mode::TEMode) = [
+E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = [
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     0
@@ -150,7 +135,7 @@ E_freq(g::RectangularWaveguide, mode::TEMode) = [
     0
 ]
 "Spatial components of H field of the TE modes in a rectangular waveguide"
-H_spatial(g::RectangularWaveguide, x, y, mode::TEMode) = [
+H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = [
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b)
@@ -166,7 +151,7 @@ H_freq(g::RectangularWaveguide, mode::TEMode) = [
 # TM Modes
 #
 "Spatial components of E field of the TM modes in a rectangular waveguide"
-E_spatial(g::RectangularWaveguide, x, y, mode::TMMode) = [
+E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = [
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b)
@@ -178,7 +163,7 @@ E_freq(g::RectangularWaveguide, mode::TMMode) = [
     1
 ]
 "Spatial components of H field of the TM modes in a rectangular waveguide"
-H_spatial(g::RectangularWaveguide, x, y, mode::TMMode) = [
+H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = [
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     0
@@ -189,7 +174,3 @@ H_freq(g::RectangularWaveguide, mode::TMMode) = [
     -j * g.ε * mode.m * π / (g.a * k_c(g, mode)^2) * g.ω,
     0
 ]
-
-function f_c(g::RectangularWaveguide, m, n)
-    k_c(g, m, n) / (2π * sqrt(g.μ * g.ε))
-end
