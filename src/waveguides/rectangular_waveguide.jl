@@ -1,6 +1,6 @@
-μ0 = 4π*10^(-7)
 ε0 = 8.8541878128e-12
 c = 299792458
+μ0 = 1/(ε0*c^2)
 
 struct RectangularWaveguide <: Waveguide
     a::AbstractFloat
@@ -132,7 +132,7 @@ function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, z, mode1::
     integral_ExHy(a1, a2, b1, b2, x1, x2, y1, y2, m1, m2, n1, n2, ai1, af1, bi1, bf1)
 end
 
-j = 1im
+j = -1im
 
 #=
  Split modes into orthogonal (frequency independent), frequency dependent and z dependent

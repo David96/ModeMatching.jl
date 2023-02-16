@@ -93,10 +93,10 @@ function C(g::Waveguide, mode::Mode)
     Cs[hash]
 end
 
-β(g::Waveguide, mode::Mode) = -sqrt(Complex(g.k^2 - k_c(g, mode)^2))
+β(g::Waveguide, mode::Mode) = sqrt(Complex(g.k^2 - k_c(g, mode)^2))
 f_c(g::Waveguide, mode::Mode) = k_c(g, mode) / (2π * sqrt(g.μ * g.ε))
 
-propagation(g::Waveguide, mode::Mode, z) = exp(-1im * β(g, mode) * z)
+propagation(g::Waveguide, mode::Mode, z) = exp(1im * β(g, mode) * z)
 
 #=
  General mode functions combining normalisation, frequency dependence, orthogonal component and
