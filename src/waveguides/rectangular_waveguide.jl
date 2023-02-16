@@ -13,9 +13,27 @@ struct RectangularWaveguide <: Waveguide
     k::AbstractFloat
     x::AbstractFloat
     y::AbstractFloat
+    z::AbstractFloat
+    length::AbstractFloat
 
-    function RectangularWaveguide(x, y, a, b, μ, ε, f)
-        new(a, b, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y)
+    function RectangularWaveguide(x, y, z, a, b, length, μ, ε, f)
+        new(a, b, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y, z, length)
+    end
+end
+
+function mode_from_nr(_::RectangularWaveguide, nr::Integer,
+        n_TE::Integer, n_TM::Integer, max_m::Integer)
+    if nr > n_TE
+        # For m == 0 || n == 0 => E_TM = 0
+        # Therefore n >= 1 && 1 <= m <= max_m
+        N = nr - n_TE - 1
+        n = div(N, max_m) + 1
+        m = (N) % max_m + 1
+        TMMode(m, n)
+    else
+        n = div(nr, max_m + 1)
+        m = nr % (max_m + 1)
+        TEMode(m, n)
     end
 end
 
@@ -26,6 +44,10 @@ function intersect(g1::RectangularWaveguide, g2::RectangularWaveguide)
     lb = [maximum([g1.x, g2.x]), maximum([g1.y, g2.y])]
     hb = [minimum([g1.a+g1.x, g2.a+g2.x]), minimum([g1.b+g1.y, g2.b+g2.y])]
     (lb, hb, (_, _) -> 1)
+end
+
+function contains(g::RectangularWaveguide, x, y, z)
+    return g.x <= x <= g.x + g.a && g.y <= y <= g.y + g.b && g.z <= z <= g.z + g.length
 end
 
 function integral_ExHy(a1, a2, b1, b2, x1, x2, y1, y2, m1, m2, n1, n2, ai, af, bi, bf)

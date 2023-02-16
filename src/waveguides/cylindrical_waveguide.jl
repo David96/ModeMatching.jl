@@ -46,16 +46,30 @@ struct CylindricalWaveguide <: Waveguide
     k::AbstractFloat
     x::AbstractFloat
     y::AbstractFloat
+    z::AbstractFloat
+    length::AbstractFloat
 
-    function CylindricalWaveguide(x, y, r, μ, ε, f)
-        new(r, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y)
+    function CylindricalWaveguide(x, y, z, r, length, μ, ε, f)
+        new(r, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y, z, length)
     end
+end
+
+function mode_from_nr(_::CylindricalWaveguide, nr::Integer,
+        n_TE::Integer, n_TM::Integer, max_m::Integer)
+    N = nr > n_TE ? (nr - n_TE - 1) : (nr - 1)
+    n = div(N, max_m) + 1
+    m = N % max_m + 1
+    nr > n_TE ? TMMode(m, n) : TEMode(m, n)
 end
 
 function intersect(g1::CylindricalWaveguide, g2::CylindricalWaveguide)
     lb = [0, 0]
     hb = [minimum([g1.r, g2.r]), 2π]
     (lb, hb, (_, _) -> 1)
+end
+
+function contains(g::CylindricalWaveguide, ρ, φ, z)
+    return ρ <= g.r
 end
 
 jacobi_det(_::CylindricalWaveguide, ρ, φ, z) = ρ
