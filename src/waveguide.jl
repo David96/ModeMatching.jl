@@ -90,7 +90,7 @@ function scalar(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode; norm=
 
     E1_f = E_freq(g1, mode1)
     H2_f = H_freq(g2, mode2)
-    ((norm ? C(g1, mode1) * C(g2, mode2) : 1) *
+    0.5 * ((norm ? (C(g1, mode1) * C(g2, mode2)) : 1) *
      (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2))
 end
 Cs = Dict()
