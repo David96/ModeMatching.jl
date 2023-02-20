@@ -31,13 +31,13 @@ using HCubature
 abstract type Waveguide end
 abstract type Mode end
 
-struct TEMode <: Mode
-    m::Integer
-    n::Integer
+struct TEMode{T<:Integer} <: Mode
+    m::T
+    n::T
 end
-struct TMMode <: Mode
-    m::Integer
-    n::Integer
+struct TMMode{T<:Integer} <: Mode
+    m::T
+    n::T
 end
 
 "In case of non-cartesian coordinate system, supply a jacobi determinant"
@@ -122,7 +122,7 @@ propagation(g::Waveguide, mode::Mode, z) = exp(1im * β(g, mode) * z)
     `norm` specifies whether the modes should be normalized in regards to `scalar` (default: true)
 """
 function E(g::Waveguide, x, y, z, mode::Mode; norm=true)
-    (norm ? C(g, mode) : 1) *
+    (norm ? C(g, mode) : 1) .*
         E_freq(g, mode) .* E_spatial(g, x, y, z, mode) .*
         propagation(g, mode, z)
 end
@@ -134,7 +134,7 @@ end
     `norm` specifies whether the modes should be normalized in regards to `scalar` (default: true)
 """
 function H(g::Waveguide, x, y, z, mode::Mode; norm=true)
-    (norm ? C(g, mode) : 1) * H_freq(g, mode) .*
+    (norm ? C(g, mode) : 1) .* H_freq(g, mode) .*
         H_spatial(g, x, y, z, mode) .* 
         propagation(g, mode, z)
 end

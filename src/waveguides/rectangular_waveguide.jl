@@ -1,23 +1,28 @@
+using StaticArrays
+
 ε0 = 8.8541878128e-12
 c = 299792458
 μ0 = 1/(ε0*c^2)
 
-struct RectangularWaveguide <: Waveguide
-    a::AbstractFloat
-    b::AbstractFloat
-    f::AbstractFloat
-    ω::AbstractFloat
-    λ::AbstractFloat
-    ε::AbstractFloat
-    μ::AbstractFloat
-    k::AbstractFloat
-    x::AbstractFloat
-    y::AbstractFloat
-    z::AbstractFloat
-    length::AbstractFloat
+struct RectangularWaveguide{T} <: Waveguide where T<:AbstractFloat
+    a::T
+    b::T
+    A::T
+    f::T
+    ω::T
+    λ::T
+    ε::T
+    μ::T
+    k::T
+    x::T
+    y::T
+    z::T
+    length::T
 
-    function RectangularWaveguide(x, y, z, a, b, length, μ, ε, f)
-        new(a, b, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y, z, length)
+    function RectangularWaveguide(x, y, z, a::T, b::T,
+            length::T, μ, ε, f::T) where T<:AbstractFloat
+        new{T}(a, b, a*b, f, 2π * f, c / f, ε * ε0, μ * μ0,
+               2π * f * sqrt(μ * ε) / c, x, y, z, length)
     end
 end
 
@@ -130,7 +135,7 @@ function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, lb, hb, _,
     integral_ExHy(a1, a2, b1, b2, x1, x2, y1, y2, m1, m2, n1, n2, ai1, af1, bi1, bf1)
 end
 
-j = -1im
+const j = -1im
 
 #=
  Split modes into orthogonal (frequency independent), frequency dependent and z dependent
@@ -143,7 +148,7 @@ j = -1im
 # TE Modes
 #
 "Spatial components of E field of the TE modes in a rectangular waveguide"
-E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = [
+E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     0
@@ -155,13 +160,13 @@ E_freq(g::RectangularWaveguide, mode::TEMode) = [
     0
 ]
 "Spatial components of H field of the TE modes in a rectangular waveguide"
-H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = [
+H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b)
 ]
 "Frequency dependent factor of H field of the TE modes in a rectangular waveguide"
-H_freq(g::RectangularWaveguide, mode::TEMode) = [
+H_freq(g::RectangularWaveguide, mode::TEMode) = @SVector [
     j * mode.m * π / (k_c(g, mode)^2 * g.a) * β(g, mode),
     j * mode.n * π / (k_c(g, mode)^2 * g.b) * β(g, mode),
     1
@@ -171,25 +176,25 @@ H_freq(g::RectangularWaveguide, mode::TEMode) = [
 # TM Modes
 #
 "Spatial components of E field of the TM modes in a rectangular waveguide"
-E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = [
+E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b)
 ]
 "Frequency dependent factor of E field of the TM modes in a rectangular waveguide"
-E_freq(g::RectangularWaveguide, mode::TMMode) = [
+E_freq(g::RectangularWaveguide, mode::TMMode) = @SVector [
     -j * mode.m * π / (g.a * k_c(g, mode)^2) * β(g, mode),
     -j * mode.n * π / (g.b * k_c(g, mode)^2) * β(g, mode),
     1
 ]
 "Spatial components of H field of the TM modes in a rectangular waveguide"
-H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = [
+H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     0
 ]
 "Frequency dependent factor of H field of the TM modes in a rectangular waveguide"
-H_freq(g::RectangularWaveguide, mode::TMMode) = [
+H_freq(g::RectangularWaveguide, mode::TMMode) = @SVector [
     +j * g.ε * mode.n * π / (g.b * k_c(g, mode)^2) * g.ω,
     -j * g.ε * mode.m * π / (g.a * k_c(g, mode)^2) * g.ω,
     0

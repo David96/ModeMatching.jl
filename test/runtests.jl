@@ -14,7 +14,7 @@ using Test, JSON, ModeMatching, Match, DelimitedFiles, Plots, Base.Filesystem, B
         for w in t["setup"]
             if w["type"] == "RectangularWaveguide"
                 push!(waveguides, RectangularWaveguide(w["x"], w["y"], w["z"], w["a"], w["b"],
-                                                       w["μ"], w["ε"], f))
+                                                       w["length"], w["μ"], w["ε"], f))
             end
         end
         if initial_mode == "TE10"
@@ -67,7 +67,7 @@ using Test, JSON, ModeMatching, Match, DelimitedFiles, Plots, Base.Filesystem, B
         gr()
         xs = @view coordinates[ind_yslice, 1]
         zs = @view coordinates[ind_yslice, 3]
-        mkpath(name)
+        mkpath("results/$name")
         for (ci, expr) in enumerate(header)
             es_com = @view data[ind_yslice, ci]
             es_sim = @view sim_data[ind_yslice, ci]
