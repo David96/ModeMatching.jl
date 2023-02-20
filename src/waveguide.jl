@@ -43,8 +43,7 @@ end
 "In case of non-cartesian coordinate system, supply a jacobi determinant"
 jacobi_det(_::Waveguide, _, _, _) = 1
 
-function integral(g1::Waveguide, g2::Waveguide, f)
-    (lb, hb, mask) = intersect(g1, g2)
+function integral(lb, hb, mask, f)
     println("WARNING: numerical integral")
     (I, _) = hcubature(r -> f(r[1], r[2]) * mask(r[1], r[2]),
                        lb, hb;
@@ -53,15 +52,15 @@ function integral(g1::Waveguide, g2::Waveguide, f)
                        maxevals=Integer(1e6))
     I
 end
-function int_ExHy(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode)
+function int_ExHy(g1::Waveguide, g2::Waveguide, lb, hb, mask, z, mode1::Mode, mode2::Mode)
     E1(x, y) = E_spatial(g1, x, y, z, mode1)
     H2(x, y) = H_spatial(g2, x, y, z, mode2)
-    integral(g1, g2, (x, y) -> E1(x, y)[1] * H2(x, y)[2] * jacobi_det(g1, x, y, z))
+    integral(lb, hb, mask, (x, y) -> E1(x, y)[1] * H2(x, y)[2] * jacobi_det(g1, x, y, z))
 end
-function int_EyHx(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode)
+function int_EyHx(g1::Waveguide, g2::Waveguide, lb, hb, mask, z, mode1::Mode, mode2::Mode)
     E1(x, y) = E_spatial(g1, x, y, z, mode1)
     H2(x, y) = H_spatial(g2, x, y, z, mode2)
-    integral(g1, g2, (x, y) -> E1(x, y)[2] * H2(x, y)[1] * jacobi_det(g1, x, y, z))
+    integral(lb, hb, mask, (x, y) -> E1(x, y)[2] * H2(x, y)[1] * jacobi_det(g1, x, y, z))
 end
 function scalar(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode; norm=true)
     # Remove if in doubt of orthonormal system!
@@ -72,8 +71,22 @@ function scalar(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode; norm=
             return Complex(0)
         end
     end
-    I1 = int_ExHy(g1, g2, z, mode1, mode2)
-    I2 = int_EyHx(g1, g2, z, mode1, mode2)
+    (lb, hb, mask) = intersect(g1, g2)
+    I1 = int_ExHy(g1, g2, lb, hb, mask, z, mode1, mode2)
+    I2 = int_EyHx(g1, g2, lb, hb, mask, z, mode1, mode2)
+
+    # If the first waveguide has a bigger cross section, some reflections will happen at the
+    # outer parts. Those can be quantified by calculating the scalar product with itself.
+    (lb1, hb1, m1) = intersect(g1, g1)
+    if any(lb1 .< lb) || any(hb1 .> hb)
+        # First add the total cross section of the first waveguide
+        I1 += int_ExHy(g1, g1, lb1, hb1, mask, z, mode1, mode2)
+        I2 += int_EyHx(g1, g1, lb1, hb1, mask, z, mode1, mode2)
+
+        # To then subtract the intersection with the second
+        I1 -= int_ExHy(g1, g1, lb, hb, m1, z, mode1, mode2)
+        I2 -= int_EyHx(g1, g1, lb, hb, m1, z, mode1, mode2)
+    end
 
     E1_f = E_freq(g1, mode1)
     H2_f = H_freq(g2, mode2)

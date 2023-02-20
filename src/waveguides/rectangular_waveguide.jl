@@ -114,17 +114,15 @@ function Ey2Ex(g::RectangularWaveguide, mode::Mode, lb, hb)
 end
 
 "Analytical modes - for rectangular waveguides, the spatial parts of TE and TM modes are identical"
-function int_ExHy(g1::RectangularWaveguide, g2::RectangularWaveguide, z, mode1::Mode, mode2::Mode)
-    lb = [maximum([g1.x, g2.x]), maximum([g1.y, g2.y])]
-    hb = [minimum([g1.a+g1.x, g2.a+g2.x]), minimum([g1.b+g1.y, g2.b+g2.y])]
+function int_ExHy(g1::RectangularWaveguide, g2::RectangularWaveguide, lb, hb, _,
+        z, mode1::Mode, mode2::Mode)
     a1 = g1.a; b1 = g1.b; a2 = g2.a; b2 = g2.b
     m1 = mode1.m; n1 = mode1.n; m2 = mode2.m; n2 = mode2.n
     integral_ExHy(a1, a2, b1, b2, g1.x, g2.x, g1.y, g2.y, m1, m2, n1, n2,
                   lb[1], hb[1], lb[2], hb[2])
 end
-function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, z, mode1::Mode, mode2::Mode)
-    lb = [maximum([g1.x, g2.x]), maximum([g1.y, g2.y])]
-    hb = [minimum([g1.a+g1.x, g2.a+g2.x]), minimum([g1.b+g1.y, g2.b+g2.y])]
+function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, lb, hb, _,
+        z, mode1::Mode, mode2::Mode)
     # Switching the parameters around allows for a single analytical integral
     (m1, n1, a1, b1, x1, y1, ai1, af1, bi1, bf1) = Ey2Ex(g1, mode1, lb, hb)
     (m2, n2, a2, b2, x2, y2, ai2, af2, bi2, bf2) = Ey2Ex(g2, mode2, lb, hb)
