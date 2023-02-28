@@ -38,18 +38,19 @@ function get_region(setup::WaveguideSetup, z)
     NaN
 end
 
+const z_pm = -1
 function Es_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
-    [a_i[region][mode] *
+    [a_i[region][mode] .*
      E(g, x, y, +(z - g.z), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
      for mode=1:(s.n_TM + s.n_TE)]
 end
 function Es_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
     znext = g.z + g.length
-    [(b_i[region][mode] *
+    [(b_i[region][mode] .*
      (E(g, x, y, -(z - znext), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
-     .* ([1, 1, -1]))) # left moving -> invert z coordinate
+     .* ([1, 1, -1] .* z_pm))) # left moving -> invert z coordinate
      for mode=1:s.n_total]
 end
 function E_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
@@ -71,16 +72,16 @@ function E(s::WaveguideSetup, a_i, b_i, x, y, z)
 end
 function Hs_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
-    [a_i[region][mode] *
+    [a_i[region][mode] .*
      H(g, x, y, +(z - g.z), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
      for mode=1:(s.n_TM + s.n_TE)]
 end
 function Hs_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
     znext = g.z + g.length
-    [(b_i[region][mode] *
+    [(b_i[region][mode] .*
       (H(g, x, y, -(z - znext), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
-       .* ([-1, -1, 1]))) # left moving -> invert z coordinate
+       .* ([-1, -1, 1] .* z_pm))) # left moving -> invert z coordinate
      for mode=1:s.n_total]
 end
 function H_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
@@ -101,79 +102,116 @@ function H(s::WaveguideSetup, a_i, b_i, x, y, z)
     @SVector [0, 0, 0]
 end
 
+P_q(d, g, n_TE, n_TM, max_m) = Diagonal([propagation(g, mode_from_nr(g, mode, n_TE, n_TM, max_m), d) for mode=1:(n_TE + n_TM)])
+
 function t_r_ab(s::WaveguideSetup)
-    n_layers = length(s.waveguides)
-    @assert 1 <= n_layers <= 3
-    if n_layers == 1
+    n = length(s.waveguides)
+    if n == 1
         return [Diagonal(fill(1, s.n_total)), zeros(s.n_total, s.n_total)]
     end
     g1 = s.waveguides[1]
     g2 = s.waveguides[2]
     (G_12, G_21) = G_12_21(g1, g2, g2.z, s.n_TE, s.n_TM, s.max_m)
-    if n_layers == 2
-        t_ab = Array{Matrix}(undef, 2, 2)
-        r_ab = Array{Matrix}(undef, 2, 2)
 
-        # Parameters of interface from 1st to 2nd layer
-        t_ab[1, 2], r_ab[1, 2] = t_r_12(G_12, G_21)
-        t_ab[2, 1], r_ab[2, 1] = t_r_12(G_21, G_12)
-        return t_ab, r_ab
+    t = Array{Matrix{ComplexF64}}(undef, n, n)
+    r = Array{Matrix{ComplexF64}}(undef, n, n)
+    t[1, 2], r[1, 2] = t_r_12(s, G_12, G_21)
+    t[2, 1], r[2, 1] = t_r_12(s, G_21, G_12)
+
+    if n == 2
+        return (t, r)
     end
-    d_2 = s.waveguides[3].z - s.waveguides[2].z
-    P_2r = P_qr(d_2, s.waveguides[2], s.n_TE, s.n_TM, s.max_m)
-    P_2l = P_ql(d_2, s.waveguides[2], s.n_TE, s.n_TM, s.max_m)
-    G_23, G_32 = G_12_21(s.waveguides[2], s.waveguides[3], s.waveguides[3].z,
+
+    G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.waveguides[end].z,
                          s.n_TE, s.n_TM, s.max_m)
-    t_r_ab(G_12, G_21, G_23, G_32, P_2r, P_2l)
+    t[n-1, n], r[n-1, n] = t_r_12(s, G_nr, G_nl)
+    t[n, n-1], r[n, n-1] = t_r_12(s, G_nl, G_nr)
+
+    for q=2:n-1
+        g1 = s.waveguides[q]
+        g2 = s.waveguides[q+1]
+        G_12, G_21 = G_12_21(g1, g2, g2.z, s.n_TE, s.n_TM, s.max_m)
+        t[q, q+1], r[q, q+1] = t_r_12(s, G_12, G_21)
+        t[q+1, q], r[q+1, q] = t_r_12(s, G_21, G_12)
+
+        P_qr = P_q(g1.length, g1, s.n_TE, s.n_TM, s.max_m)
+        P_ql = P_qr
+        tmp_inv = inv(I - r[q, 1] * P_ql * r[q, q+1] * P_qr)
+        r[1, q+1] = r[1, q] + t[q, 1] * P_ql * r[q, q+1] * P_qr * tmp_inv * t[1, q]
+        t[1, q+1] = t[q, q+1] * P_qr * tmp_inv * t[1, q]
+        r[q+1, 1] = r[q+1, q] + t[q, q+1] * P_qr * tmp_inv * r[q, 1] * P_ql * t[q+1, q]
+        t[q+1, 1] = t[q, 1] * P_ql * t[q+1, q] + t[q, 1] * P_ql * r[q, q+1] * P_qr * tmp_inv *
+            r[q, 1] * P_ql * t[q+1, q]
+    end
+
+    for q=n-1:-1:2
+        P_qr = P_q(g1.length, g1, s.n_TE, s.n_TM, s.max_m)
+        P_ql = P_qr
+        tmp_inv = inv(I - r[q, q-1] * P_ql * r[q, n] * P_qr)
+        r[q-1, n] = r[q-1, q] + t[q, q-1] * P_ql * r[q, n] * P_qr * tmp_inv * t[q-1, q]
+        t[q-1, n] = t[q, n] * P_qr * tmp_inv * t[q-1, q]
+        r[n, q-1] = r[n, q] + t[q, n] * P_qr * tmp_inv * r[q, q-1] * P_ql * t[n, q]
+        t[n, q-1] = t[q, q-1] * P_ql * t[n, q] + t[q, q-1] * P_ql * r[q, n] * tmp_inv *
+            r[q, q-1] * P_ql * t[n, q]
+    end
+    (t, r)
 end
 
 function calc_a_i(s::WaveguideSetup, t_ab, r_ab)
     n_layers = length(s.waveguides)
-    @assert 1 <= n_layers <= 3
     if n_layers == 1
         return [s.a_1]
     elseif n_layers == 2
-        aprime_1 = P_qr(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
         [s.a_1, t_ab[1, 2] * aprime_1]
     else
-        aprime_1 = P_qr(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
-        bprime_3 = zeros(s.n_TE + s.n_TM)
-        d_2 = s.waveguides[3].z - s.waveguides[2].z
-        P_2r = P_qr(d_2, s.waveguides[2], s.n_TE, s.n_TM, s.max_m)
-        P_2l = P_ql(d_2, s.waveguides[2], s.n_TE, s.n_TM, s.max_m)
-        a_2 = inv(I - r_ab[2, 1] * P_2l * r_ab[2, 3] * P_2r) *
-                (t_ab[1, 2] * aprime_1 + r_ab[2, 1] * P_2l * t_ab[3, 2] * bprime_3)
-        a_3 = t_ab[1, 3] * aprime_1
-        [s.a_1, a_2, a_3]
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
+        bprime_n = zeros(s.n_TE + s.n_TM)
+        a_qs = Vector{Vector{ComplexF64}}(undef, s.n_layers)
+        a_qs[1] = s.a_1
+        for q=2:s.n_layers-1
+            d_q = s.waveguides[q].length
+            P_qr = P_q(d_q, s.waveguides[q], s.n_TE, s.n_TM, s.max_m)
+            P_ql = P_qr
+            a_qs[q] = inv(I - r_ab[q, 1] * P_ql * r_ab[q, s.n_layers] * P_qr) *
+                    (t_ab[1, q] * aprime_1 + r_ab[q, 1] * P_ql * t_ab[s.n_layers, q] * bprime_n)
+        end
+        a_qs[end] = t_ab[1, s.n_layers] * aprime_1
+        a_qs
     end
 end
 
 function calc_b_i(s::WaveguideSetup, t_ab, r_ab)
     n_layers = length(s.waveguides)
-    @assert 1 <= n_layers <= 3
     if n_layers == 1
         return [zeros(s.n_total)]
     elseif n_layers == 2
-        aprime_1 = P_qr(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
         [r_ab[1, 2] * aprime_1, zeros(s.n_total)]
     else
-        aprime_1 = P_qr(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
-        bprime_3 = zeros(s.n_TE + s.n_TM)
-        d_2 = s.waveguides[3].z - s.waveguides[2].z
-        P_2r = P_qr(d_2, s.waveguides[2], s.n_TE, s.n_TM, s.max_m)
-        P_2l = P_ql(d_2, s.waveguides[2], s.n_TE, s.n_TM, s.max_m)
-        b_2 = inv(I - r_ab[2, 3] * P_2r * r_ab[2, 1] * P_2l) *
-             (r_ab[2, 3] * P_2r * t_ab[1, 2] * aprime_1 + t_ab[3, 2] * bprime_3)
-        [r_ab[1, 3] * aprime_1, b_2, zeros(s.n_TM + s.n_TE)]
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
+        bprime_n = zeros(s.n_TE + s.n_TM)
+        b_qs = Vector{Vector{ComplexF64}}(undef, s.n_layers)
+        n = s.n_layers
+        b_qs[1] = r_ab[1, n] * aprime_1
+        for q=2:n-1
+            d_q = s.waveguides[q].length
+            P_qr = P_q(d_q, s.waveguides[q], s.n_TE, s.n_TM, s.max_m)
+            P_ql = P_qr
+            b_qs[q] = inv(I - r_ab[q, n] * P_qr * r_ab[q, 1] * P_ql) *
+                (r_ab[q, n] * P_qr * t_ab[1, q] * aprime_1 + t_ab[n, q] * bprime_n)
+        end
+        b_qs[end] = zeros(s.n_total)
+        b_qs
     end
 end
 
 function G_12_21(g1::Waveguide, g2::Waveguide, z, n_TE, n_TM, max_m)
-    @assert g1.z + g1.length == g2.z "Waveguides must have an interface!"
+    @assert g1.z + g1.length ≈ g2.z "Waveguides must have an interface!"
     n_total = n_TE + n_TM
     G_12 = Array{ComplexF64}(undef, n_total, n_total)
     G_21 = Array{ComplexF64}(undef, n_total, n_total)
-    @floop for (mode1, mode2) = product(1:n_total, 1:n_total)
+    #=@floop =#for (mode1, mode2) = product(1:n_total, 1:n_total)
         m1 = mode_from_nr(g1, mode1, n_TE, n_TM, max_m)
         m2 = mode_from_nr(g2, mode2, n_TE, n_TM, max_m)
         I = scalar(g1, g2, z, m1, m2)
@@ -184,37 +222,17 @@ function G_12_21(g1::Waveguide, g2::Waveguide, z, n_TE, n_TM, max_m)
     (G_12, G_21)
 end
 
-P_qr(d, g, n_TE, n_TM, max_m) = Diagonal([propagation(g, mode_from_nr(g, mode, n_TE, n_TM, max_m), d) for mode=1:(n_TE + n_TM)])
-P_ql(d, g, n_TE, n_TM, max_m) = P_qr(d, g, n_TE, n_TM, max_m)
-
-function t_r_12(G_12, G_21)
+function t_r_12(s::WaveguideSetup, G_12, G_21)
     t = 2 .* inv(transpose(G_21) .+ G_12)
-    r = 0.5 .* (transpose(G_21) .- G_12) * t
+    #r = 0.5 .* (transpose(G_21) .- G_12) * t
+    #return (t, r)
+    r = Matrix{ComplexF64}(undef, s.n_total, s.n_total)
+    for n=1:s.n_total, m=1:s.n_total
+        S = 0
+        for j=1:s.n_total
+            S += (n > s.n_TE ? 1 : -1) * (G_21[j, n] - G_12[n, j]) * t[j, m]
+        end
+        r[n, m] = 0.5 * S
+    end
     (t, r)
 end
-function t_r_ab(G_12, G_21, G_23, G_32, P_2r, P_2l)
-    t_ab = Array{Matrix}(undef, 3, 3)
-    r_ab = Array{Matrix}(undef, 3, 3)
-
-    # Parameters of interface from 1st to 2nd layer
-    (t_ab[1, 2], r_ab[1, 2]) = t_r_12(G_12, G_21)
-    (t_ab[2, 1], r_ab[2, 1]) = t_r_12(G_21, G_12)
-
-    # Parameters of interface from 2nd to 3rd layer
-    (t_ab[2, 3], r_ab[2, 3]) = t_r_12(G_23, G_32)
-    (t_ab[3, 2], r_ab[3, 2]) = t_r_12(G_32, G_23)
-
-    # Implements Numerical methods in photonics 6.109-6.112
-    #display(abs.(eigvals(r_ab[2, 1] * P_2l * r_ab[2, 3] * P_2r)))
-    tmp_inv = inv(I - r_ab[2, 1] * P_2l * r_ab[2, 3] * P_2r)
-    r_ab[1, 3] = r_ab[1, 2] + t_ab[2, 1] * P_2l * r_ab[2, 3] * P_2r * tmp_inv * t_ab[1, 2]
-    t_ab[1, 3] = t_ab[2, 3] * P_2r * tmp_inv * t_ab[1, 2]
-    r_ab[3, 1] = r_ab[3, 2] + t_ab[2, 3] * P_2r * tmp_inv * r_ab[2, 1] * P_2l * t_ab[3, 2]
-    t_ab[3, 1] = t_ab[2, 1] * P_2l * t_ab[3, 2] + t_ab[2, 1] * P_2l * r_ab[2, 3] * 
-    P_2r * tmp_inv * r_ab[2, 1] * P_2l * t_ab[3, 2]
-
-    (t_ab, r_ab)
-end
-r_1_qp1(r_1q, t_q1, P_q, r_q_qp1) = r_1q + t_q1 * P_q * r_q_qp1 * P_q * inv(I - r_q1 * P_q * r_q_qp1 * P_q) * t_1q
-t_qp1_1(t_q1, P_q, t_qp1_q, r_q_qp1) = t_q1 * P_q * t_qp1_q + t_q1 * P_q * r_q_qp1 * P_q *
-            inv(I - r_q1 * P_q * r_q_qp1 * P_q) * r_q1 * P_q * t_qp1_q
