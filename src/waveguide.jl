@@ -3,30 +3,30 @@ using HCubature
 """
     Waveguide API:
     Every waveguide implementation is expected to provide:
-    - `E_spatial(g::WaveguideImpl, x, y, z, mode::Mode)::Vector`
-    - `E_freq(g::WaveguideImpl, mode::Mode)::Vector`
-    - `H_spatial(g::WaveguideImpl, x, y, z, mode::Mode)::Vector`
-    - `E_freq(g::WaveguideImpl, mode::Mode)::Vector`
+    - `E_spatial(g::WaveguideImpl, x, y, z, mode::Mode)::SVector`
+    - `E_freq(g::WaveguideImpl, mode::Mode)::SVector`
+    - `H_spatial(g::WaveguideImpl, x, y, z, mode::Mode)::SVector`
+    - `E_freq(g::WaveguideImpl, mode::Mode)::SVector`
     returning three dimensional vectors of the spatial and frequency dependent parts
     of the E and H fields of the Eigenmodes.
-    - `k_c(g::WaveguideImpl, mode::Mode)::AbstractFloat` returning the cutoff wavevector
+    - `k_c(g::WaveguideImpl, mode::Mode) <: AbstractFloat` returning the cutoff wavevector
     - `intersect(g1::WaveguideImpl, g2::WaveguideImpl)::Tuple`
     returning (lowerbound, higherbound, mask) of the two dimensional intersection
     of the two waveguides.
     - `contains(g::WaveuideImpl, x, y, z)::Bool` returning true if the point lies within the
     waveguide, false otherwise.
-    - `mode_from_nr(g::WaveguideImpl, nr::Integer, n_TE, n_TM, max_m)::Mode`
+    - `mode_from_nr(g::WaveguideImpl, nr::T, n_TE, n_TM, max_m)::Mode where T<:Integer`
     has to provide a unique mapping of a nr to a waveguide mode with 1 <= nr <= n_TE + n_TM.
 
     - `int_ExHy(g1::WaveguideImpl, g2::WaveuideImpl, mode1::Mode, mode2::Mode)` and
     `int_EyHx(g1::WaveguideImpl, g2::WaveuideImpl, mode1::Mode, mode2::Mode)`
     can be used to provide analytical solutions to the overlap integrals.
-    - `jacobi_det(g::WaveguideImpl, x, y, z)::Number` can be used in case non-cartesian
+    - `jacobi_det(g::WaveguideImpl, x, y, z)` can be used in case non-cartesian
     coordinates are used.
 
     Each Waveguide struct is expected to provide:
-    - `k::AbstractFloat`: The wavevector.
-    - `A::AbstractFloat`: The cross section of the waveguide.
+    - `k <: AbstractFloat`: The wavevector.
+    - `A <: AbstractFloat`: The cross section of the waveguide.
 """
 abstract type Waveguide end
 abstract type Mode end
@@ -44,7 +44,7 @@ end
 jacobi_det(_::Waveguide, _, _, _) = 1
 
 function integral(lb, hb, mask, f)
-    println("WARNING: numerical integral")
+    #println("WARNING: numerical integral")
     (I, _) = hcubature(r -> f(r[1], r[2]) * mask(r[1], r[2]),
                        lb, hb;
                        rtol=1e-4,
