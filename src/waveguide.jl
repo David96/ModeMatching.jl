@@ -96,20 +96,21 @@ end
 Cs = Dict()
 lockCs = ReentrantLock()
 function C(g::Waveguide, mode::Mode)
-    hash = "$g;$mode"
-    lock(lockCs)
-    if !(hash in keys(Cs))
+    #h = hash(g, hash(mode))
+    #lock(lockCs)
+    #if !(h in keys(Cs))
         Cm = scalar(g, g, 0, mode, mode; norm=false)
-        Cs[hash] = 1 / sqrt(Complex(Cm))
-    end
-    unlock(lockCs)
-    Cs[hash]
+        #Cs[h] = 1 / sqrt(Complex(Cm))
+        return 1/sqrt(Complex(Cm))
+    #end
+    #unlock(lockCs)
+    #Cs[h]
 end
 
-β(g::Waveguide, mode::Mode) = sqrt(Complex(g.k^2 - k_c(g, mode)^2))
+β(g::Waveguide, mode::Mode) = conj(sqrt(Complex(g.k^2 - k_c(g, mode)^2)))
 f_c(g::Waveguide, mode::Mode) = k_c(g, mode) / (2π * sqrt(g.μ * g.ε))
 
-propagation(g::Waveguide, mode::Mode, z) = exp(1im * β(g, mode) * z)
+propagation(g::Waveguide, mode::Mode, z) = exp(-1im * β(g, mode) * z)
 
 #=
  General mode functions combining normalisation, frequency dependence, orthogonal component and
