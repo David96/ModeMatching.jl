@@ -1,4 +1,4 @@
-using SpecialFunctions, FunctionZeros, ForwardDiff, Roots
+using SpecialFunctions, FunctionZeros, ForwardDiff, Roots, StaticArrays
 
 #
 # Helpers for bessel functions
@@ -7,13 +7,13 @@ function besselj_prime(n, x)
     ForwardDiff.derivative(x1 -> besselj(n, x1), x)
 end
 
-max_n = 20
-max_root = 100
-bessel_prime_zeros = nothing
+max_n::Int32 = 20
+max_root::Int32 = 100
+bessel_prime_zeros::Vector{Vector{Float64}} = []
 function precompute_zeros()
     println("Precomputing roots of J'...")
     global max_n, max_root, bessel_prime_zeros
-    bessel_prime_zeros = Vector{Vector{AbstractFloat}}(undef, max_n)
+    bessel_prime_zeros = Vector{Vector{Float64}}(undef, max_n)
     for n1 = 0:max_n-1
         bessel_prime_zeros[n1+1] = find_zeros(x -> ForwardDiff.derivative(
                                             x1 -> besselj(n1, x1), x), (1, max_root))
@@ -22,7 +22,7 @@ function precompute_zeros()
 end
 function besselj_prime_zero(n, m)
     global max_n, max_root, bessel_prime_zeros
-    if bessel_prime_zeros === nothing
+    if isempty(bessel_prime_zeros)
         precompute_zeros()
     end
     if n > max_n
@@ -36,26 +36,26 @@ function besselj_prime_zero(n, m)
     bessel_prime_zeros[n+1][m]
 end
 
-struct CylindricalWaveguide <: Waveguide
-    r::AbstractFloat
-    f::AbstractFloat
-    ω::AbstractFloat
-    λ::AbstractFloat
-    ε::AbstractFloat
-    μ::AbstractFloat
-    k::AbstractFloat
-    x::AbstractFloat
-    y::AbstractFloat
-    z::AbstractFloat
-    length::AbstractFloat
+struct CylindricalWaveguide{T<:AbstractFloat} <: Waveguide
+    r::T
+    f::T
+    ω::T
+    λ::T
+    ε::T
+    μ::T
+    k::T
+    x::T
+    y::T
+    z::T
+    length::T
 
-    function CylindricalWaveguide(x, y, z, r, length, μ, ε, f)
-        new(r, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y, z, length)
+    function CylindricalWaveguide(x, y, z, r::T, length::T, μ, ε, f) where T<:AbstractFloat
+        new{T}(r, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y, z, length)
     end
 end
 
-function mode_from_nr(_::CylindricalWaveguide, nr::Integer,
-        n_TE::Integer, n_TM::Integer, max_m::Integer)
+function mode_from_nr(_::CylindricalWaveguide,
+        nr::T, n_TE::T, n_TM::T, max_m::T) where T<:Integer
     N = nr > n_TE ? (nr - n_TE - 1) : (nr - 1)
     n = div(N, max_m) + 1
     m = N % max_m + 1
@@ -63,6 +63,7 @@ function mode_from_nr(_::CylindricalWaveguide, nr::Integer,
 end
 
 function intersect(g1::CylindricalWaveguide, g2::CylindricalWaveguide)
+    # TODO: off center intersections
     lb = [1e-6, 0]
     hb = [minimum([g1.r, g2.r]), 2π]
     (lb, hb, (_, _) -> 1)
@@ -80,22 +81,22 @@ k_c(g::CylindricalWaveguide, mode::TMMode) = besselj_zero(mode.m, mode.n) / g.r
 #
 # TE Modes
 #
-E_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TEMode) = [
+E_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TEMode) = @SVector [
     cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
     sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
     0
 ]
-E_freq(g::CylindricalWaveguide, mode::TEMode) = [
+E_freq(g::CylindricalWaveguide, mode::TEMode) = @SVector [
     -j * g.ω * g.μ * mode.m / k_c(g, mode)^2,
     j * g.ω * g.μ / k_c(g, mode),
     0
 ]
-H_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TEMode) = [
+H_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TEMode) = @SVector [
     sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
     cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
     sin(mode.m * φ) * besselj(mode.m, k_c(g, mode) * ρ)
 ]
-H_freq(g::CylindricalWaveguide, mode::TEMode) = [
+H_freq(g::CylindricalWaveguide, mode::TEMode) = @SVector [
     -j * β(g, mode) / k_c(g, mode),
     -j * β(g, mode) * mode.m / k_c(g, mode)^2,
     1
@@ -104,22 +105,22 @@ H_freq(g::CylindricalWaveguide, mode::TEMode) = [
 #
 # TM Modes
 #
-E_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TMMode) = [
+E_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TMMode) = @SVector [
     sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
     cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
     sin(mode.m * φ) * besselj(mode.m, k_c(g, mode) * ρ)
 ]
-E_freq(g::CylindricalWaveguide, mode::TMMode) = [
+E_freq(g::CylindricalWaveguide, mode::TMMode) = @SVector [
     -j * β(g, mode) / k_c(g, mode),
     -j * β(g, mode) * mode.m / k_c(g, mode)^2,
     1
 ]
-H_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TMMode) = [
+H_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TMMode) = @SVector [
     cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
     sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
     0
 ]
-H_freq(g::CylindricalWaveguide, mode::TMMode) = [
+H_freq(g::CylindricalWaveguide, mode::TMMode) = @SVector [
     j * g.ω * g.ε * mode.m / k_c(g, mode)^2,
     -j * g.ω * g.ε / k_c(g, mode),
     0
