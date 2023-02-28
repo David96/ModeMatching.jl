@@ -250,5 +250,56 @@
             "ε": 1
         }
         ]
+    },
+    "four_ab": {
+        "freq": 26e9,
+        "mode_in": "TE10",
+        "comsol_file": "",
+        "setup": [
+        {
+            "type": "RectangularWaveguide",
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "a": 1e-2,
+            "b": 0.8e-2,
+            "length": 5e-2,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "RectangularWaveguide",
+            "x": -0.1e-2,
+            "y": -0.1e-2,
+            "z": 5e-2,
+            "a": 1.2e-2,
+            "b": 1e-2,
+            "length": 5e-2,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "RectangularWaveguide",
+            "x": 0,
+            "y": 0,
+            "z": 10e-2,
+            "a": 1e-2,
+            "b": 0.8e-2,
+            "length": 5e-2,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "RectangularWaveguide",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 15e-2,
+            "a": 1.2e-2,
+            "b": 1e-2,
+            "length": 5e-2,
+            "μ": 1,
+            "ε": 1
+        }
+        ]
     }
 }
