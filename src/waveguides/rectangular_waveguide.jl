@@ -1,8 +1,8 @@
 using StaticArrays
 
-ε0 = 8.8541878128e-12
-c = 299792458
-μ0 = 1/(ε0*c^2)
+const ε0 = 8.8541878128e-12
+const c = 299792458
+const μ0 = 1/(ε0*c^2)
 
 struct RectangularWaveguide{T} <: Waveguide where T<:AbstractFloat
     a::T
@@ -135,7 +135,7 @@ function int_EyHx(g1::RectangularWaveguide, g2::RectangularWaveguide, lb, hb, _,
     integral_ExHy(a1, a2, b1, b2, x1, x2, y1, y2, m1, m2, n1, n2, ai1, af1, bi1, bf1)
 end
 
-const j = -1im
+const j = 1im
 
 #=
  Split modes into orthogonal (frequency independent), frequency dependent and z dependent
@@ -154,9 +154,9 @@ E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
     0
 ]
 "Frequency dependent factor of E field of the TE modes in a rectangular waveguide"
-E_freq(g::RectangularWaveguide, mode::TEMode) = [
-    +j * g.μ * mode.n * π / (k_c(g, mode)^2 * g.b) * g.ω,
-    -j * g.μ * mode.m * π / (k_c(g, mode)^2 * g.a) * g.ω,
+E_freq(g::RectangularWaveguide, mode::TEMode) = @SVector [
+    -j * g.μ * mode.n * π / (k_c(g, mode)^2 * g.b) * g.ω,
+    +j * g.μ * mode.m * π / (k_c(g, mode)^2 * g.a) * g.ω,
     0
 ]
 "Spatial components of H field of the TE modes in a rectangular waveguide"
@@ -167,9 +167,9 @@ H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
 ]
 "Frequency dependent factor of H field of the TE modes in a rectangular waveguide"
 H_freq(g::RectangularWaveguide, mode::TEMode) = @SVector [
-    j * mode.m * π / (k_c(g, mode)^2 * g.a) * β(g, mode),
-    j * mode.n * π / (k_c(g, mode)^2 * g.b) * β(g, mode),
-    1
+    -j * mode.m * π / (k_c(g, mode)^2 * g.a) * β(g, mode),
+    -j * mode.n * π / (k_c(g, mode)^2 * g.b) * β(g, mode),
+    -1
 ]
 
 #
@@ -184,7 +184,7 @@ E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
 "Frequency dependent factor of E field of the TM modes in a rectangular waveguide"
 E_freq(g::RectangularWaveguide, mode::TMMode) = @SVector [
     -j * mode.m * π / (g.a * k_c(g, mode)^2) * β(g, mode),
-    -j * mode.n * π / (g.b * k_c(g, mode)^2) * β(g, mode),
+    +j * mode.n * π / (g.b * k_c(g, mode)^2) * β(g, mode),
     1
 ]
 "Spatial components of H field of the TM modes in a rectangular waveguide"
@@ -195,7 +195,7 @@ H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
 ]
 "Frequency dependent factor of H field of the TM modes in a rectangular waveguide"
 H_freq(g::RectangularWaveguide, mode::TMMode) = @SVector [
-    +j * g.ε * mode.n * π / (g.b * k_c(g, mode)^2) * g.ω,
+    -j * g.ε * mode.n * π / (g.b * k_c(g, mode)^2) * g.ω,
     -j * g.ε * mode.m * π / (g.a * k_c(g, mode)^2) * g.ω,
     0
 ]
