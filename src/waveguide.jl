@@ -55,7 +55,7 @@ function integral(lb, hb, mask, f)
                        lb, hb;
                        rtol=1e-4,
                        #atol=1e-12,
-                       maxevals=Integer(1e6))
+                       maxevals=Integer(1e5))
     I
 end
 function int_ExHy(g1::Waveguide, g2::Waveguide, lb, hb, mask, z, mode1::Mode, mode2::Mode)
@@ -68,49 +68,63 @@ function int_EyHx(g1::Waveguide, g2::Waveguide, lb, hb, mask, z, mode1::Mode, mo
     H2(x, y) = H_spatial(g2, x, y, z, mode2, fwd)
     integral(lb, hb, mask, (x, y) -> E1(x, y)[2] * H2(x, y)[1] * jacobi_det(g1, x, y, z))
 end
-function scalar(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode; norm=true)
-    # Remove if in doubt of orthonormal system!
-    if norm && false
-        if g1 == g2 && mode1 == mode2
-            return Complex(1)
-        elseif g1 == g2
-            return Complex(0)
+const Ss = Dict{UInt64, ComplexF64}()
+const Slock = ReentrantLock()
+scalar(g1, g2, z, mode1, mode2; norm=true) = scalar(g1, g2, z, intersect(g1, g2)..., mode1, mode2; norm)
+function scalar(g1::Waveguide, g2::Waveguide, z, lb, hb, mask, mode1::Mode, mode2::Mode; norm=true)
+    h = hash(g1, hash(g2, hash(z, hash(mode1, hash(mode2)))))
+    lock(Slock)
+    if !(h in keys(Ss))
+        # Remove if in doubt of orthonormal system!
+        if norm# && false
+            if g1 == g2 && mode1 == mode2
+                return Complex(1)
+            elseif g1 == g2
+                return Complex(0)
+            end
         end
+        I1 = int_ExHy(g1, g2, lb, hb, mask, z, mode1, mode2)
+        I2 = int_EyHx(g1, g2, lb, hb, mask, z, mode1, mode2)
+
+        # If the first waveguide has a bigger cross section, some reflections will happen at the
+        # outer parts. Those can be quantified by calculating the scalar product with itself.
+        (lb1, hb1, m1) = intersect(g1, g1)
+        Iouter = 0
+        if g1 != g2 && norm && mode1 == mode2 && #is_propagating(g1, mode1) &&
+                (any(lb1 .< lb) || any(hb1 .> hb))# && false
+            # First add the total cross section of the first waveguide
+            I1 += int_ExHy(g1, g1, lb1, hb1, mask, z, mode1, mode2)
+            I2 += int_EyHx(g1, g1, lb1, hb1, mask, z, mode1, mode2)
+
+            # To then subtract the intersection with the second
+            I1 -= int_ExHy(g1, g1, lb, hb, m1, z, mode1, mode2)
+            I2 -= int_EyHx(g1, g1, lb, hb, m1, z, mode1, mode2)
+        end
+
+        E1_f = E_freq(g1, mode1, fwd)
+        H2_f = H_freq(g2, mode2, fwd)
+        Ss[h] = 0.5 * (norm ? (C(g1, mode1) * C(g2, mode2)) : 1) *
+            (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2) + Iouter
     end
-    (lb, hb, mask) = intersect(g1, g2)
-    I1 = int_ExHy(g1, g2, lb, hb, mask, z, mode1, mode2)
-    I2 = int_EyHx(g1, g2, lb, hb, mask, z, mode1, mode2)
-
-    # If the first waveguide has a bigger cross section, some reflections will happen at the
-    # outer parts. Those can be quantified by calculating the scalar product with itself.
-    (lb1, hb1, m1) = intersect(g1, g1)
-    if any(lb1 .< lb) || any(hb1 .> hb)
-        # First add the total cross section of the first waveguide
-        I1 += int_ExHy(g1, g1, lb1, hb1, mask, z, mode1, mode2)
-        I2 += int_EyHx(g1, g1, lb1, hb1, mask, z, mode1, mode2)
-
-        # To then subtract the intersection with the second
-        I1 -= int_ExHy(g1, g1, lb, hb, m1, z, mode1, mode2)
-        I2 -= int_EyHx(g1, g1, lb, hb, m1, z, mode1, mode2)
-    end
-
-    E1_f = E_freq(g1, mode1)
-    H2_f = H_freq(g2, mode2)
-    0.5 * ((norm ? (C(g1, mode1) * C(g2, mode2)) : 1) *
-     (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2))
+    unlock(Slock)
+    Ss[h]
 end
-Cs = Dict()
-lockCs = ReentrantLock()
+const Cs = Dict()
+const lockCs = ReentrantLock()
 function C(g::Waveguide, mode::Mode)
-    #h = hash(g, hash(mode))
-    #lock(lockCs)
-    #if !(h in keys(Cs))
+    h = hash(g, hash(mode))
+    lock(lockCs)
+    if !(h in keys(Cs))
         Cm = scalar(g, g, 0, mode, mode; norm=false)
-        #Cs[h] = 1 / sqrt(Complex(Cm))
-        return 1/sqrt(Complex(Cm))
-    #end
-    #unlock(lockCs)
-    #Cs[h]
+        Cs[h] = 1 / sqrt(Complex(Cm))
+    end
+    unlock(lockCs)
+    Cs[h]
+end
+function C(g::Waveguide, mode::Mode, lb_inner, hb_inner)
+    s_outer = scalar(g, g, 0, mode, mode; norm=false)
+    s_inner = scalar(g, g, 0, lb_inner, hb_inner, (x, y) -> 1, mode, mode; norm=false)
+    1 / sqrt(Complex(s_outer - s_inner))
 end
 
 β(g::Waveguide, mode::Mode, dir::Direction) = Int(dir) * conj(sqrt(Complex(g.k^2 - k_c(g, mode)^2)))
