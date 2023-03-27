@@ -39,6 +39,12 @@ struct TMMode{T<:Integer} <: Mode
     m::T
     n::T
 end
+struct TEMMode{T<:Integer} <: Mode
+    l::T
+    p::T
+end
+
+@enum Direction fwd=1 bck=-1
 
 "In case of non-cartesian coordinate system, supply a jacobi determinant"
 jacobi_det(_::Waveguide, _, _, _) = 1
@@ -53,13 +59,13 @@ function integral(lb, hb, mask, f)
     I
 end
 function int_ExHy(g1::Waveguide, g2::Waveguide, lb, hb, mask, z, mode1::Mode, mode2::Mode)
-    E1(x, y) = E_spatial(g1, x, y, z, mode1)
-    H2(x, y) = H_spatial(g2, x, y, z, mode2)
+    E1(x, y) = E_spatial(g1, x, y, z, mode1, fwd)
+    H2(x, y) = H_spatial(g2, x, y, z, mode2, fwd)
     integral(lb, hb, mask, (x, y) -> E1(x, y)[1] * H2(x, y)[2] * jacobi_det(g1, x, y, z))
 end
 function int_EyHx(g1::Waveguide, g2::Waveguide, lb, hb, mask, z, mode1::Mode, mode2::Mode)
-    E1(x, y) = E_spatial(g1, x, y, z, mode1)
-    H2(x, y) = H_spatial(g2, x, y, z, mode2)
+    E1(x, y) = E_spatial(g1, x, y, z, mode1, fwd)
+    H2(x, y) = H_spatial(g2, x, y, z, mode2, fwd)
     integral(lb, hb, mask, (x, y) -> E1(x, y)[2] * H2(x, y)[1] * jacobi_det(g1, x, y, z))
 end
 function scalar(g1::Waveguide, g2::Waveguide, z, mode1::Mode, mode2::Mode; norm=true)
@@ -107,10 +113,14 @@ function C(g::Waveguide, mode::Mode)
     #Cs[h]
 end
 
-β(g::Waveguide, mode::Mode) = conj(sqrt(Complex(g.k^2 - k_c(g, mode)^2)))
+β(g::Waveguide, mode::Mode, dir::Direction) = Int(dir) * conj(sqrt(Complex(g.k^2 - k_c(g, mode)^2)))
 f_c(g::Waveguide, mode::Mode) = k_c(g, mode) / (2π * sqrt(g.μ * g.ε))
+is_propagating(g::Waveguide, mode::Mode) = isreal(β(g, mode, fwd))
 
-propagation(g::Waveguide, mode::Mode, z) = exp(-1im * β(g, mode) * z)
+function propagation(g::Waveguide, mode::Mode, dir::Direction, z)
+    z_rel = dir == fwd ? g.z : (g.z + g.length)
+    exp(-1im * β(g, mode, dir) * (z - z_rel))
+end
 
 #=
  General mode functions combining normalisation, frequency dependence, orthogonal component and
@@ -122,10 +132,10 @@ propagation(g::Waveguide, mode::Mode, z) = exp(-1im * β(g, mode) * z)
     Return the vector of the E field of a certain `mode` at position `x`, `y`, `z`.
     `norm` specifies whether the modes should be normalized in regards to `scalar` (default: true)
 """
-function E(g::Waveguide, x, y, z, mode::Mode; norm=true)
+function E(g::Waveguide, x, y, z, mode::Mode, dir::Direction; norm=true)
     (norm ? C(g, mode) : 1) .*
-        E_freq(g, mode) .* E_spatial(g, x, y, z, mode) .*
-        propagation(g, mode, z)
+        E_freq(g, mode, dir) .* E_spatial(g, x, y, z, mode, dir) .*
+        propagation(g, mode, dir, z)
 end
 
 """
@@ -134,8 +144,8 @@ end
     Return the vector of the H field of a certain `mode` at position `x`, `y`, `z`.
     `norm` specifies whether the modes should be normalized in regards to `scalar` (default: true)
 """
-function H(g::Waveguide, x, y, z, mode::Mode; norm=true)
-    (norm ? C(g, mode) : 1) .* H_freq(g, mode) .*
-        H_spatial(g, x, y, z, mode) .* 
-        propagation(g, mode, z)
+function H(g::Waveguide, x, y, z, mode::Mode, dir::Direction; norm=true)
+    (norm ? C(g, mode) : 1) .* H_freq(g, mode, dir) .*
+        H_spatial(g, x, y, z, mode, dir) .* 
+        propagation(g, mode, dir, z)
 end

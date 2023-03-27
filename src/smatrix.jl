@@ -14,9 +14,9 @@ struct WaveguideSetup
     end
 end
 
-function power(g::Waveguide, mode::Mode)
-    E1(x, y, z) = E(g, x, y, z, mode)
-    H2(x, y, z) = H(g, x, y, z, mode)
+function power(g::Waveguide, mode::Mode, dir::Direction)
+    E1(x, y, z) = E(g, x, y, z, mode, dir)
+    H2(x, y, z) = H(g, x, y, z, mode, dir)
     power(g, E1, H2, 0)
 end
 function power(g::Waveguide, E::Function, H::Function, z)
@@ -42,15 +42,13 @@ const z_pm = -1
 function Es_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
     [a_i[region][mode] .*
-     E(g, x, y, +(z - g.z), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
+     E(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), fwd)
      for mode=1:(s.n_TM + s.n_TE)]
 end
 function Es_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
-    znext = g.z + g.length
-    [(b_i[region][mode] .*
-     (E(g, x, y, -(z - znext), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
-     .* ([1, 1, -1] .* z_pm))) # left moving -> invert z coordinate
+    [b_i[region][mode] .*
+     (E(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), bck)#= .* [1, 1, -1]=#)
      for mode=1:s.n_total]
 end
 function E_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
@@ -73,15 +71,13 @@ end
 function Hs_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
     [a_i[region][mode] .*
-     H(g, x, y, +(z - g.z), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
+     H(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), fwd)
      for mode=1:(s.n_TM + s.n_TE)]
 end
 function Hs_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
-    znext = g.z + g.length
-    [(b_i[region][mode] .*
-      (H(g, x, y, -(z - znext), mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m))
-       .* ([-1, -1, 1] .* z_pm))) # left moving -> invert z coordinate
+    [b_i[region][mode] .*
+     (H(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), bck)#= .* [-1, -1, 1]=#)
      for mode=1:s.n_total]
 end
 function H_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
@@ -102,7 +98,7 @@ function H(s::WaveguideSetup, a_i, b_i, x, y, z)
     @SVector [0, 0, 0]
 end
 
-P_q(d, g, n_TE, n_TM, max_m) = Diagonal([propagation(g, mode_from_nr(g, mode, n_TE, n_TM, max_m), d) for mode=1:(n_TE + n_TM)])
+P_q(d, g, n_TE, n_TM, max_m) = Diagonal([propagation(g, mode_from_nr(g, mode, n_TE, n_TM, max_m), fwd, d) for mode=1:(n_TE + n_TM)])
 
 function t_r_ab(s::WaveguideSetup)
     n = length(s.waveguides)
@@ -111,7 +107,7 @@ function t_r_ab(s::WaveguideSetup)
     end
     g1 = s.waveguides[1]
     g2 = s.waveguides[2]
-    (G_12, G_21) = G_12_21(g1, g2, g2.z, s.n_TE, s.n_TM, s.max_m)
+    (G_12, G_21) = G_12_21(g1, g2, s.n_TE, s.n_TM, s.max_m)
 
     t = Array{Matrix{ComplexF64}}(undef, n, n)
     r = Array{Matrix{ComplexF64}}(undef, n, n)
@@ -122,15 +118,14 @@ function t_r_ab(s::WaveguideSetup)
         return (t, r)
     end
 
-    G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.waveguides[end].z,
-                         s.n_TE, s.n_TM, s.max_m)
+    G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.n_TE, s.n_TM, s.max_m)
     t[n-1, n], r[n-1, n] = t_r_12(s, G_nr, G_nl)
     t[n, n-1], r[n, n-1] = t_r_12(s, G_nl, G_nr)
 
     for q=2:n-1
         g1 = s.waveguides[q]
         g2 = s.waveguides[q+1]
-        G_12, G_21 = G_12_21(g1, g2, g2.z, s.n_TE, s.n_TM, s.max_m)
+        G_12, G_21 = G_12_21(g1, g2, s.n_TE, s.n_TM, s.max_m)
         t[q, q+1], r[q, q+1] = t_r_12(s, G_12, G_21)
         t[q+1, q], r[q+1, q] = t_r_12(s, G_21, G_12)
 
@@ -206,17 +201,19 @@ function calc_b_i(s::WaveguideSetup, t_ab, r_ab)
     end
 end
 
-function G_12_21(g1::Waveguide, g2::Waveguide, z, n_TE, n_TM, max_m)
+function G_12_21(g1::Waveguide, g2::Waveguide, n_TE, n_TM, max_m)
     @assert g1.z + g1.length ≈ g2.z "Waveguides must have an interface!"
     n_total = n_TE + n_TM
     G_12 = Array{ComplexF64}(undef, n_total, n_total)
     G_21 = Array{ComplexF64}(undef, n_total, n_total)
-    #=@floop =#for (mode1, mode2) = product(1:n_total, 1:n_total)
+    @floop for (mode1, mode2) = product(1:n_total, 1:n_total)
         m1 = mode_from_nr(g1, mode1, n_TE, n_TM, max_m)
         m2 = mode_from_nr(g2, mode2, n_TE, n_TM, max_m)
-        I = scalar(g1, g2, z, m1, m2)
+        I = scalar(g1, g2, g2.z, m1, m2)
         G_12[mode1, mode2] = I
-        I = scalar(g2, g1, z, m1, m2)
+        m1 = mode_from_nr(g2, mode1, n_TE, n_TM, max_m)
+        m2 = mode_from_nr(g1, mode2, n_TE, n_TM, max_m)
+        I = scalar(g2, g1, g2.z, m1, m2)
         G_21[mode1, mode2] = I
     end
     (G_12, G_21)

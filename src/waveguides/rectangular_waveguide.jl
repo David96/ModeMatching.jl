@@ -154,7 +154,7 @@ E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
     0
 ]
 "Frequency dependent factor of E field of the TE modes in a rectangular waveguide"
-E_freq(g::RectangularWaveguide, mode::TEMode) = @SVector [
+E_freq(g::RectangularWaveguide, mode::TEMode, _::Direction) = @SVector [
     -j * g.μ * mode.n * π / (k_c(g, mode)^2 * g.b) * g.ω,
     +j * g.μ * mode.m * π / (k_c(g, mode)^2 * g.a) * g.ω,
     0
@@ -166,9 +166,9 @@ H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
     cos(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b)
 ]
 "Frequency dependent factor of H field of the TE modes in a rectangular waveguide"
-H_freq(g::RectangularWaveguide, mode::TEMode) = @SVector [
-    -j * mode.m * π / (k_c(g, mode)^2 * g.a) * β(g, mode),
-    -j * mode.n * π / (k_c(g, mode)^2 * g.b) * β(g, mode),
+H_freq(g::RectangularWaveguide, mode::TEMode, dir::Direction) = @SVector [
+    -j * mode.m * π / (k_c(g, mode)^2 * g.a) * β(g, mode, dir),
+    -j * mode.n * π / (k_c(g, mode)^2 * g.b) * β(g, mode, dir),
     -1
 ]
 
@@ -182,9 +182,9 @@ E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
     sin(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b)
 ]
 "Frequency dependent factor of E field of the TM modes in a rectangular waveguide"
-E_freq(g::RectangularWaveguide, mode::TMMode) = @SVector [
-    -j * mode.m * π / (g.a * k_c(g, mode)^2) * β(g, mode),
-    +j * mode.n * π / (g.b * k_c(g, mode)^2) * β(g, mode),
+E_freq(g::RectangularWaveguide, mode::TMMode, dir::Direction) = @SVector [
+    -j * mode.m * π / (g.a * k_c(g, mode)^2) * β(g, mode, dir),
+    +j * mode.n * π / (g.b * k_c(g, mode)^2) * β(g, mode, dir),
     1
 ]
 "Spatial components of H field of the TM modes in a rectangular waveguide"
@@ -194,7 +194,7 @@ H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
     0
 ]
 "Frequency dependent factor of H field of the TM modes in a rectangular waveguide"
-H_freq(g::RectangularWaveguide, mode::TMMode) = @SVector [
+H_freq(g::RectangularWaveguide, mode::TMMode, _::Direction) = @SVector [
     -j * g.ε * mode.n * π / (g.b * k_c(g, mode)^2) * g.ω,
     -j * g.ε * mode.m * π / (g.a * k_c(g, mode)^2) * g.ω,
     0
