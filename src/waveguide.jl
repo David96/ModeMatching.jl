@@ -73,7 +73,6 @@ const Slock = ReentrantLock()
 scalar(g1, g2, z, mode1, mode2; norm=true) = scalar(g1, g2, z, intersect(g1, g2)..., mode1, mode2; norm)
 function scalar(g1::Waveguide, g2::Waveguide, z, lb, hb, mask, mode1::Mode, mode2::Mode; norm=true)
     h = hash(g1, hash(g2, hash(z, hash(mode1, hash(mode2)))))
-    lock(Slock)
     if !(h in keys(Ss))
         # Remove if in doubt of orthonormal system!
         if norm# && false
@@ -103,10 +102,13 @@ function scalar(g1::Waveguide, g2::Waveguide, z, lb, hb, mask, mode1::Mode, mode
 
         E1_f = E_freq(g1, mode1, fwd)
         H2_f = H_freq(g2, mode2, fwd)
-        Ss[h] = 0.5 * (norm ? (C(g1, mode1) * C(g2, mode2)) : 1) *
-            (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2) + Iouter
+        lock(Slock)
+        if !(h in keys(Ss))
+            Ss[h] = 0.5 * (norm ? (C(g1, mode1) * C(g2, mode2)) : 1) *
+                (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2) + Iouter
+        end
+        unlock(Slock)
     end
-    unlock(Slock)
     Ss[h]
 end
 const Cs = Dict()
