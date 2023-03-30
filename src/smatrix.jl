@@ -100,11 +100,11 @@ function H(s::WaveguideSetup, a_i, b_i, x, y, z)
     @SVector [0, 0, 0]
 end
 
-function P_q(d, g, n_modes)
+function P_q(g, n_modes)
     Diagonal([
         begin
             m = mode_from_nr(g, mode, n_modes)
-            is_propagating(g, m) ? propagation(g, m, fwd, d) : ComplexF64(0)
+            is_propagating(g, m) ? propagation(g, m, fwd, g.z + g.length) : ComplexF64(0)
         end for mode=1:(n_modes)])
 end
 
@@ -137,7 +137,7 @@ function t_r_ab(s::WaveguideSetup)
         t[q, q+1], r[q, q+1] = t_r_12(s, s.waveguides[q], s.waveguides[q+1], G_12, G_21)
         t[q+1, q], r[q+1, q] = t_r_12(s, s.waveguides[q+1], s.waveguides[q], G_21, G_12)
 
-        P_qr = P_q(g1.length, g1, s.n_modes[q])
+        P_qr = P_q(g1, s.n_modes[q])
         P_ql = P_qr
         A = r[q, 1] * P_ql * r[q, q+1] * P_qr
         tmp_inv = inv(I - A)
@@ -150,7 +150,7 @@ function t_r_ab(s::WaveguideSetup)
 
     for q=n-1:-1:2
         g1 = s.waveguides[q]
-        P_qr = P_q(g1.length, g1, s.n_modes[q])
+        P_qr = P_q(g1, s.n_modes[q])
         P_ql = P_qr
         A = r[q, q-1] * P_ql * r[q, n] * P_qr
         tmp_inv = inv(I - A)
@@ -168,16 +168,15 @@ function calc_a_i(s::WaveguideSetup, t_ab, r_ab)
     if n_layers == 1
         return [s.a_1]
     elseif n_layers == 2
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        aprime_1 = P_q(s.waveguides[1], s.n_modes[1]) * s.a_1
         [s.a_1, t_ab[1, 2] * aprime_1]
     else
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        aprime_1 = P_q(s.waveguides[1], s.n_modes[1]) * s.a_1
         bprime_n = zeros(s.n_modes[end])
         a_qs = Vector{Vector{ComplexF64}}(undef, s.n_layers)
         a_qs[1] = s.a_1
         for q=2:s.n_layers-1
-            d_q = s.waveguides[q].length
-            P_qr = P_q(d_q, s.waveguides[q], s.n_modes[q])
+            P_qr = P_q(s.waveguides[q], s.n_modes[q])
             P_ql = P_qr
             a_qs[q] = inv(I - r_ab[q, 1] * P_ql * r_ab[q, s.n_layers] * P_qr) *
                     (t_ab[1, q] * aprime_1 + r_ab[q, 1] * P_ql * t_ab[s.n_layers, q] * bprime_n)
@@ -192,17 +191,17 @@ function calc_b_i(s::WaveguideSetup, t_ab, r_ab)
     if n_layers == 1
         return [zeros(s.n_modes[1])]
     elseif n_layers == 2
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        aprime_1 = P_q(s.waveguides[1], s.n_modes[1]) * s.a_1
         [r_ab[1, 2] * aprime_1, zeros(s.n_modes[2])]
     else
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        aprime_1 = P_q(s.waveguides[1], s.n_modes[1]) * s.a_1
         bprime_n = zeros(s.n_modes[end])
         b_qs = Vector{Vector{ComplexF64}}(undef, s.n_layers)
         n = s.n_layers
         b_qs[1] = r_ab[1, n] * aprime_1
         for q=2:n-1
             d_q = s.waveguides[q].length
-            P_qr = P_q(d_q, s.waveguides[q], s.n_modes[q])
+            P_qr = P_q(s.waveguides[q], s.n_modes[q])
             P_ql = P_qr
             b_qs[q] = inv(I - r_ab[q, n] * P_qr * r_ab[q, 1] * P_ql) *
                 (r_ab[q, n] * P_qr * t_ab[1, q] * aprime_1 + t_ab[n, q] * bprime_n)
