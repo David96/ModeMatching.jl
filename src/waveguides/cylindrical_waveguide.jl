@@ -20,8 +20,10 @@ function precompute_zeros()
     end
     println("Done.")
 end
+const bessel_lock = ReentrantLock()
 function besselj_prime_zero(n, m)
     global max_n, max_root, bessel_prime_zeros
+    lock(bessel_lock)
     if isempty(bessel_prime_zeros)
         precompute_zeros()
     end
@@ -33,6 +35,7 @@ function besselj_prime_zero(n, m)
         max_root *= 2
         precompute_zeros()
     end
+    unlock(bessel_lock)
     bessel_prime_zeros[n+1][m]
 end
 
