@@ -1,35 +1,37 @@
 using SpecialPolynomials
 
-struct GaussianBeam <: Waveguide
-    k::AbstractFloat
-    f::AbstractFloat
-    ω::AbstractFloat
-    ε::AbstractFloat
-    μ::AbstractFloat
-    n::AbstractFloat
-    w_0::AbstractFloat
-    z_R::AbstractFloat
-    x::AbstractFloat
-    y::AbstractFloat
-    z::AbstractFloat
-    length::AbstractFloat
+struct GaussianBeam{T} <: Waveguide where T <: AbstractFloat
+    k::T
+    f::T
+    ω::T
+    ε::T
+    μ::T
+    n::T
+    w_0::T
+    z_0::T
+    z_R::T
+    x::T
+    y::T
+    z::T
+    length::T
+    A::T
+    max_m::Int
 
-    function GaussianBeam(x, y, z, w_0, length, μ, ε, f)
-        new(2π * f * sqrt(μ * ε) / c, f, 2π * f, ε*ε0, μ*μ0, sqrt(ε), w_0,
-            π*w_0^2*sqrt(ε)/(c/f), x, y, z, length)
+    function GaussianBeam(x, y, z, w_0, z_0, length, μ, ε, f, max_m)
+        new{typeof(sqrt(μ*ε))}(2π * f * sqrt(μ * ε) / c, f, 2π * f, ε*ε0, μ*μ0, sqrt(ε), w_0,
+            z_0, π*w_0^2*sqrt(ε)/(c/f), x, y, z, length, π, max_m)
     end
 end
 
-function mode_from_nr(_::GaussianBeam, nr::Integer,
-        n_TE::Integer, n_TM::Integer, max_m::Integer)
-    p = div(nr-1, 2*max_m+1)
-    l = (nr-1) % (2 * max_m + 1) - max_m
+function mode_from_nr(g::GaussianBeam, nr, _)
+    p = div(nr-1, 2*(g.max_m-1)+1)
+    l = (nr-1) % (2 * (g.max_m-1) + 1) - (g.max_m-1)
     TEMMode(l, p)
 end
 
 function intersect(g1::GaussianBeam, g2::GaussianBeam)
     lb = [1e-6, 0]
-    hb = [50e-2, 2π]
+    hb = [1, 2π]
     (lb, hb, (_, _) -> 1)
 end
 function intersect(g1::GaussianBeam, g2::CylindricalWaveguide)

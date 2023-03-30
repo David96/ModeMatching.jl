@@ -18,16 +18,21 @@ struct RectangularWaveguide{T} <: Waveguide where T<:AbstractFloat
     y::T
     z::T
     length::T
+    r_TE::T
+    r_TM::T
+    max_m::Int
 
     function RectangularWaveguide(x, y, z, a::T, b::T,
-            length::T, μ, ε, f::T) where T<:AbstractFloat
+            length::T, μ, ε, f::T, r_TE, r_TM, max_m) where T<:AbstractFloat
         new{T}(a, b, a*b, f, 2π * f, c / f, ε * ε0, μ * μ0,
-               2π * f * sqrt(μ * ε) / c, x, y, z, length)
+               2π * f * sqrt(μ * ε) / c, x, y, z, length, r_TE, r_TM, max_m)
     end
 end
 
-function mode_from_nr(_::RectangularWaveguide, nr::Integer,
-        n_TE::Integer, n_TM::Integer, max_m::Integer)
+function mode_from_nr(g::RectangularWaveguide, nr, n_total)
+    n_TE = round(Int, g.r_TE * n_total, RoundUp)
+    #n_TM = Int(g.r_TM * n_total)
+    max_m = g.max_m
     if nr > n_TE
         # For m == 0 || n == 0 => E_TM = 0
         # Therefore n >= 1 && 1 <= m <= max_m

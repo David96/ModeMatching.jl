@@ -48,17 +48,23 @@ struct CylindricalWaveguide{T<:AbstractFloat} <: Waveguide
     y::T
     z::T
     length::T
+    A::T
+    r_TE::T
+    r_TM::T
+    max_m::Int
 
-    function CylindricalWaveguide(x, y, z, r::T, length::T, μ, ε, f) where T<:AbstractFloat
-        new{T}(r, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c, x, y, z, length)
+    function CylindricalWaveguide(x, y, z, r::T, length::T,
+            μ, ε, f, r_TE, r_TM, max_m) where T<:AbstractFloat
+        new{T}(r, f, 2π * f, c / f, ε * ε0, μ * μ0, 2π * f * sqrt(μ * ε) / c,
+               x, y, z, length, π * r^2, r_TE, r_TM, max_m)
     end
 end
 
-function mode_from_nr(_::CylindricalWaveguide,
-        nr::T, n_TE::T, n_TM::T, max_m::T) where T<:Integer
+function mode_from_nr(g::CylindricalWaveguide, nr, n_total)
+    n_TE = round(Int, n_total * g.r_TE)
     N = nr > n_TE ? (nr - n_TE - 1) : (nr - 1)
-    n = div(N, max_m) + 1
-    m = N % max_m + 1
+    n = div(N, g.max_m) + 1
+    m = N % g.max_m + 1
     nr > n_TE ? TMMode(m, n) : TEMode(m, n)
 end
 

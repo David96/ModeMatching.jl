@@ -2,15 +2,17 @@ using LinearAlgebra, Base.Iterators, FLoops
 
 struct WaveguideSetup
     waveguides::Vector{Waveguide}
-    n_TE::Integer
-    n_TM::Integer
-    max_m::Integer
     a_1::Vector
-    n_total::Integer
+    n_modes::Vector{Int}
     n_layers::Integer
 
-    function WaveguideSetup(waveguides, n_TE, n_TM, max_m, a_1)
-        new(waveguides, n_TE, n_TM, max_m, a_1, n_TE+n_TM, length(waveguides))
+    function WaveguideSetup(waveguides, n_modes_1, a_1)
+        n_modes = Vector{Int}(undef, length(waveguides))
+        n_modes[1] = n_modes_1
+        for (i, g)=enumerate(waveguides[2:end])
+            n_modes[i+1] = round(n_modes_1 * g.A / waveguides[1].A, RoundUp)
+        end
+        new(waveguides, a_1, n_modes, length(waveguides))
     end
 end
 
@@ -42,14 +44,14 @@ const z_pm = -1
 function Es_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
     [a_i[region][mode] .*
-     E(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), fwd)
-     for mode=1:(s.n_TM + s.n_TE)]
+     E(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), fwd)
+     for mode=1:(s.n_modes[region])]
 end
 function Es_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
     [b_i[region][mode] .*
-     (E(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), bck)#= .* [1, 1, -1]=#)
-     for mode=1:s.n_total]
+     (E(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), bck)#= .* [1, 1, -1]=#)
+     for mode=1:s.n_modes[region]]
 end
 function E_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
     if r == s.n_layers
@@ -71,14 +73,14 @@ end
 function Hs_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
     [a_i[region][mode] .*
-     H(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), fwd)
-     for mode=1:(s.n_TM + s.n_TE)]
+     H(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), fwd)
+     for mode=1:(s.n_modes[region])]
 end
 function Hs_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
     [b_i[region][mode] .*
-     (H(g, x, y, z, mode_from_nr(g, mode, s.n_TE, s.n_TM, s.max_m), bck)#= .* [-1, -1, 1]=#)
-     for mode=1:s.n_total]
+     (H(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), bck)#= .* [-1, -1, 1]=#)
+     for mode=1:s.n_modes[region]]
 end
 function H_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
     if r == s.n_layers
@@ -107,7 +109,7 @@ function t_r_ab(s::WaveguideSetup)
     end
     g1 = s.waveguides[1]
     g2 = s.waveguides[2]
-    (G_12, G_21) = G_12_21(g1, g2, s.n_TE, s.n_TM, s.max_m)
+    (G_12, G_21) = G_12_21(g1, g2, s.n_modes[1], s.n_modes[2])
 
     t = Array{Matrix{ComplexF64}}(undef, n, n)
     r = Array{Matrix{ComplexF64}}(undef, n, n)
@@ -118,18 +120,18 @@ function t_r_ab(s::WaveguideSetup)
         return (t, r)
     end
 
-    G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.n_TE, s.n_TM, s.max_m)
+    G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.n_modes[end-1], s.n_modes[end])
     t[n-1, n], r[n-1, n] = t_r_12(s, G_nr, G_nl)
     t[n, n-1], r[n, n-1] = t_r_12(s, G_nl, G_nr)
 
     for q=2:n-1
         g1 = s.waveguides[q]
         g2 = s.waveguides[q+1]
-        G_12, G_21 = G_12_21(g1, g2, s.n_TE, s.n_TM, s.max_m)
+        G_12, G_21 = G_12_21(g1, g2, s.n_modes[q], s.n_modes[q+1])
         t[q, q+1], r[q, q+1] = t_r_12(s, G_12, G_21)
         t[q+1, q], r[q+1, q] = t_r_12(s, G_21, G_12)
 
-        P_qr = P_q(g1.length, g1, s.n_TE, s.n_TM, s.max_m)
+        P_qr = P_q(g1.length, g1, s.n_modes[q])
         P_ql = P_qr
         tmp_inv = inv(I - r[q, 1] * P_ql * r[q, q+1] * P_qr)
         r[1, q+1] = r[1, q] + t[q, 1] * P_ql * r[q, q+1] * P_qr * tmp_inv * t[1, q]
@@ -157,16 +159,16 @@ function calc_a_i(s::WaveguideSetup, t_ab, r_ab)
     if n_layers == 1
         return [s.a_1]
     elseif n_layers == 2
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
         [s.a_1, t_ab[1, 2] * aprime_1]
     else
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
-        bprime_n = zeros(s.n_TE + s.n_TM)
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        bprime_n = zeros(s.n_modes[end])
         a_qs = Vector{Vector{ComplexF64}}(undef, s.n_layers)
         a_qs[1] = s.a_1
         for q=2:s.n_layers-1
             d_q = s.waveguides[q].length
-            P_qr = P_q(d_q, s.waveguides[q], s.n_TE, s.n_TM, s.max_m)
+            P_qr = P_q(d_q, s.waveguides[q], s.n_modes[q])
             P_ql = P_qr
             a_qs[q] = inv(I - r_ab[q, 1] * P_ql * r_ab[q, s.n_layers] * P_qr) *
                     (t_ab[1, q] * aprime_1 + r_ab[q, 1] * P_ql * t_ab[s.n_layers, q] * bprime_n)
@@ -179,42 +181,39 @@ end
 function calc_b_i(s::WaveguideSetup, t_ab, r_ab)
     n_layers = length(s.waveguides)
     if n_layers == 1
-        return [zeros(s.n_total)]
+        return [zeros(s.n_modes[1])]
     elseif n_layers == 2
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
-        [r_ab[1, 2] * aprime_1, zeros(s.n_total)]
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        [r_ab[1, 2] * aprime_1, zeros(s.n_modes[2])]
     else
-        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_TE, s.n_TM, s.max_m) * s.a_1
-        bprime_n = zeros(s.n_TE + s.n_TM)
+        aprime_1 = P_q(s.waveguides[2].z, s.waveguides[1], s.n_modes[1]) * s.a_1
+        bprime_n = zeros(s.n_modes[end])
         b_qs = Vector{Vector{ComplexF64}}(undef, s.n_layers)
         n = s.n_layers
         b_qs[1] = r_ab[1, n] * aprime_1
         for q=2:n-1
             d_q = s.waveguides[q].length
-            P_qr = P_q(d_q, s.waveguides[q], s.n_TE, s.n_TM, s.max_m)
+            P_qr = P_q(d_q, s.waveguides[q], s.n_modes[q])
             P_ql = P_qr
             b_qs[q] = inv(I - r_ab[q, n] * P_qr * r_ab[q, 1] * P_ql) *
                 (r_ab[q, n] * P_qr * t_ab[1, q] * aprime_1 + t_ab[n, q] * bprime_n)
         end
-        b_qs[end] = zeros(s.n_total)
+        b_qs[end] = zeros(s.n_modes[end])
         b_qs
     end
 end
 
-function G_12_21(g1::Waveguide, g2::Waveguide, n_TE, n_TM, max_m)
+function G_12_21(g1::Waveguide, g2::Waveguide, n_modes1, n_modes2)
     @assert g1.z + g1.length ≈ g2.z "Waveguides must have an interface!"
-    n_total = n_TE + n_TM
-    G_12 = Array{ComplexF64}(undef, n_total, n_total)
-    G_21 = Array{ComplexF64}(undef, n_total, n_total)
-    @floop for (mode1, mode2) = product(1:n_total, 1:n_total)
-        m1 = mode_from_nr(g1, mode1, n_TE, n_TM, max_m)
-        m2 = mode_from_nr(g2, mode2, n_TE, n_TM, max_m)
+    G_12 = Array{ComplexF64}(undef, n_modes1, n_modes2)
+    G_21 = Array{ComplexF64}(undef, n_modes2, n_modes1)
+    @floop for (mode1, mode2) = product(1:n_modes1, 1:n_modes2)
+        m1 = mode_from_nr(g1, mode1, n_modes1)
+        m2 = mode_from_nr(g2, mode2, n_modes2)
         I = scalar(g1, g2, g2.z, m1, m2)
         G_12[mode1, mode2] = I
-        m1 = mode_from_nr(g2, mode1, n_TE, n_TM, max_m)
-        m2 = mode_from_nr(g1, mode2, n_TE, n_TM, max_m)
-        I = scalar(g2, g1, g2.z, m1, m2)
-        G_21[mode1, mode2] = I
+        I = scalar(g2, g1, g2.z, m2, m1)
+        G_21[mode2, mode1] = I
     end
     (G_12, G_21)
 end
