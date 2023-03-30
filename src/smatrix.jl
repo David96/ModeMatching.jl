@@ -100,7 +100,13 @@ function H(s::WaveguideSetup, a_i, b_i, x, y, z)
     @SVector [0, 0, 0]
 end
 
-P_q(d, g, n_TE, n_TM, max_m) = Diagonal([propagation(g, mode_from_nr(g, mode, n_TE, n_TM, max_m), fwd, d) for mode=1:(n_TE + n_TM)])
+function P_q(d, g, n_modes)
+    Diagonal([
+        begin
+            m = mode_from_nr(g, mode, n_modes)
+            is_propagating(g, m) ? propagation(g, m, fwd, d) : ComplexF64(0)
+        end for mode=1:(n_modes)])
+end
 
 function t_r_ab(s::WaveguideSetup)
     n = length(s.waveguides)
@@ -133,7 +139,8 @@ function t_r_ab(s::WaveguideSetup)
 
         P_qr = P_q(g1.length, g1, s.n_modes[q])
         P_ql = P_qr
-        tmp_inv = inv(I - r[q, 1] * P_ql * r[q, q+1] * P_qr)
+        A = r[q, 1] * P_ql * r[q, q+1] * P_qr
+        tmp_inv = inv(I - A)
         r[1, q+1] = r[1, q] + t[q, 1] * P_ql * r[q, q+1] * P_qr * tmp_inv * t[1, q]
         t[1, q+1] = t[q, q+1] * P_qr * tmp_inv * t[1, q]
         r[q+1, 1] = r[q+1, q] + t[q, q+1] * P_qr * tmp_inv * r[q, 1] * P_ql * t[q+1, q]
@@ -142,9 +149,11 @@ function t_r_ab(s::WaveguideSetup)
     end
 
     for q=n-1:-1:2
-        P_qr = P_q(g1.length, g1, s.n_TE, s.n_TM, s.max_m)
+        g1 = s.waveguides[q]
+        P_qr = P_q(g1.length, g1, s.n_modes[q])
         P_ql = P_qr
-        tmp_inv = inv(I - r[q, q-1] * P_ql * r[q, n] * P_qr)
+        A = r[q, q-1] * P_ql * r[q, n] * P_qr
+        tmp_inv = inv(I - A)
         r[q-1, n] = r[q-1, q] + t[q, q-1] * P_ql * r[q, n] * P_qr * tmp_inv * t[q-1, q]
         t[q-1, n] = t[q, n] * P_qr * tmp_inv * t[q-1, q]
         r[n, q-1] = r[n, q] + t[q, n] * P_qr * tmp_inv * r[q, q-1] * P_ql * t[n, q]
