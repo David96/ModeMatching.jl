@@ -153,7 +153,7 @@ const j = 1im
 # TE Modes
 #
 "Spatial components of E field of the TE modes in a rectangular waveguide"
-E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
+E_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode, _::Direction) = @SVector [
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     0
@@ -165,7 +165,7 @@ E_freq(g::RectangularWaveguide, mode::TEMode, _::Direction) = @SVector [
     0
 ]
 "Spatial components of H field of the TE modes in a rectangular waveguide"
-H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode) = @SVector [
+H_spatial(g::RectangularWaveguide, x, y, z, mode::TEMode, _::Direction) = @SVector [
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b)
@@ -181,7 +181,7 @@ H_freq(g::RectangularWaveguide, mode::TEMode, dir::Direction) = @SVector [
 # TM Modes
 #
 "Spatial components of E field of the TM modes in a rectangular waveguide"
-E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
+E_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode, _::Direction) = @SVector [
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     sin(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b)
@@ -193,7 +193,7 @@ E_freq(g::RectangularWaveguide, mode::TMMode, dir::Direction) = @SVector [
     1
 ]
 "Spatial components of H field of the TM modes in a rectangular waveguide"
-H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode) = @SVector [
+H_spatial(g::RectangularWaveguide, x, y, z, mode::TMMode, _::Direction) = @SVector [
     sin(mode.m * π * (x - g.x) / g.a) * cos(mode.n * π * (y - g.y) / g.b),
     cos(mode.m * π * (x - g.x) / g.a) * sin(mode.n * π * (y - g.y) / g.b),
     0
