@@ -124,6 +124,34 @@
         }
         ]
     },
+    "double_ab_backwards": {
+        "freq": 26e9,
+        "mode_in": "TE10",
+        "comsol_file": "",
+        "setup": [
+        {
+            "type": "RectangularWaveguide",
+            "x": -0.1e-2,
+            "y": -0.1e-2,
+            "z": 0,
+            "a": 1.2e-2,
+            "b": 1e-2,
+            "length": 5e-2,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "RectangularWaveguide",
+            "x": 0,
+            "y": 0,
+            "a": 1e-2,
+            "b": 0.8e-2,
+            "length": 5e-2,
+            "μ": 1,
+            "ε": 1
+        }
+        ]
+    },
     "double_b": {
         "freq": 26e9,
         "mode_in": "TE10",
@@ -359,28 +387,47 @@
         "comsol_file": "",
         "setup": [
         {
-            "type": "CylindricalWaveguide",
-            "x": 0,
-            "y": 0,
-            "z": 0,
-            "r": 14e-2,
-            "length": 2e-2,
+            "type": "GaussianBeam",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "length": 1,
+            "w_0": 10e-2,
+            "z_0": 0.5,
             "μ": 1,
             "ε": 1
+        }
+        ]
+    },
+    "gaussian_test2": {
+        "freq": 22.5e9,
+        "mode_in": "TE10",
+        "comsol_file": "",
+        "setup": [
+        {
+            "type": "CylindricalWaveguide",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "length": 1e-2,
+            "r": 1.5e-1,
+            "μ": 1,
+            "ε": 1e20
         },
         {
             "type": "GaussianBeam",
             "x": 0.0,
             "y": 0.0,
-            "length": 1,
-            "w_0": 10e-2,
+            "length": 50e-2,
+            "w_0": 0.96e-1,
+            "z_0": 0e-2,
             "μ": 1,
             "ε": 1
         }
         ]
     },
     "gaussian_mirror": {
-        "freq": 22e9,
+        "freq": 22.5e9,
         "mode_in": "TE10",
         "comsol_file": "",
         "setup": [
@@ -389,8 +436,45 @@
             "x": 0.0,
             "y": 0.0,
             "z": 0.0,
-            "length": 10e-2,
-            "w_0": 41e-2,
+            "length": 5e-2,
+            "w_0": 41e-3,
+            "z_0": 4e-2,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "CylindricalWaveguide",
+            "x": 0.0,
+            "y": 0.0,
+            "length": 1e-2,
+            "r": 1.5e-1,
+            "μ": 1,
+            "ε": 1e20
+        }
+        ]
+    },
+    "booster_test": {
+        "freq": 22.5e9,
+        "mode_in": "TE10",
+        "comsol_file": "",
+        "setup": [
+        {
+            "type": "GaussianBeam",
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "length": 5e-2,
+            "w_0": 0.96e-1,
+            "z_0": 5e-2,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "CylindricalWaveguide",
+            "x": 0.0,
+            "y": 0.0,
+            "length": 1e-2,
+            "r": 1.5e-1,
             "μ": 1,
             "ε": 1
         },
@@ -398,8 +482,18 @@
             "type": "GaussianBeam",
             "x": 0.0,
             "y": 0.0,
+            "length": 5e-2,
+            "w_0": 0.96e-1,
+            "z_0": 0,
+            "μ": 1,
+            "ε": 1
+        },
+        {
+            "type": "CylindricalWaveguide",
+            "x": 0.0,
+            "y": 0.0,
             "length": 1e-2,
-            "w_0": 41e-2,
+            "r": 1.5e-1,
             "μ": 1,
             "ε": 1e20
         }
@@ -417,7 +511,7 @@
                 "length": 48.6e-2,
                 "r0": 4.4e-2,
                 "ra": 11e-2,
-                "N": 80,
+                "N": 2,
                 "μ": 1,
                 "ε": 1
             },
@@ -425,9 +519,9 @@
                 "type": "GaussianBeam",
                 "x": 0.0,
                 "y": 0.0,
-                "z": 48.6e-2,
-                "length": 5e-2,
-                "w_0": 7e-2,
+                "length": 50e-2,
+                "w_0": 7e-3,
+                "z_0": 0e-2,
                 "μ": 1,
                 "ε": 1
             }
