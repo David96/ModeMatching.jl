@@ -85,27 +85,12 @@ function scalar(g1::Waveguide, g2::Waveguide, z, lb, hb, mask, mode1::Mode, mode
         I1 = int_ExHy(g1, g2, lb, hb, mask, z, mode1, mode2)
         I2 = int_EyHx(g1, g2, lb, hb, mask, z, mode1, mode2)
 
-        # If the first waveguide has a bigger cross section, some reflections will happen at the
-        # outer parts. Those can be quantified by calculating the scalar product with itself.
-        (lb1, hb1, m1) = intersect(g1, g1)
-        Iouter = 0
-        if g1 != g2 && norm && mode1 == mode2 && #is_propagating(g1, mode1) &&
-                (any(lb1 .< lb) || any(hb1 .> hb))# && false
-            # First add the total cross section of the first waveguide
-            I1 += int_ExHy(g1, g1, lb1, hb1, mask, z, mode1, mode2)
-            I2 += int_EyHx(g1, g1, lb1, hb1, mask, z, mode1, mode2)
-
-            # To then subtract the intersection with the second
-            I1 -= int_ExHy(g1, g1, lb, hb, m1, z, mode1, mode2)
-            I2 -= int_EyHx(g1, g1, lb, hb, m1, z, mode1, mode2)
-        end
-
         E1_f = E_freq(g1, mode1, fwd)
         H2_f = H_freq(g2, mode2, fwd)
         lock(Slock)
         if !(h in keys(Ss))
             Ss[h] = 0.5 * (norm ? (C(g1, mode1) * C(g2, mode2)) : 1) *
-                (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2) + Iouter
+                (E1_f[1] * H2_f[2] * I1 - E1_f[2] * H2_f[1] * I2)
         end
         unlock(Slock)
     end

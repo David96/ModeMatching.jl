@@ -113,23 +113,23 @@ function t_r_ab(s::WaveguideSetup)
 
     t = Array{Matrix{ComplexF64}}(undef, n, n)
     r = Array{Matrix{ComplexF64}}(undef, n, n)
-    t[1, 2], r[1, 2] = t_r_12(s, G_12, G_21)
-    t[2, 1], r[2, 1] = t_r_12(s, G_21, G_12)
+    t[1, 2], r[1, 2] = t_r_12(s, g1, g2, G_12, G_21)
+    t[2, 1], r[2, 1] = t_r_12(s, g2, g1, G_21, G_12)
 
     if n == 2
         return (t, r)
     end
 
     G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.n_modes[end-1], s.n_modes[end])
-    t[n-1, n], r[n-1, n] = t_r_12(s, G_nr, G_nl)
-    t[n, n-1], r[n, n-1] = t_r_12(s, G_nl, G_nr)
+    t[n-1, n], r[n-1, n] = t_r_12(s, s.waveguides[end-1], s.waveguides[end], G_nr, G_nl)
+    t[n, n-1], r[n, n-1] = t_r_12(s, s.waveguides[end], s.waveguides[end-1], G_nl, G_nr)
 
     for q=2:n-1
         g1 = s.waveguides[q]
         g2 = s.waveguides[q+1]
         G_12, G_21 = G_12_21(g1, g2, s.n_modes[q], s.n_modes[q+1])
-        t[q, q+1], r[q, q+1] = t_r_12(s, G_12, G_21)
-        t[q+1, q], r[q+1, q] = t_r_12(s, G_21, G_12)
+        t[q, q+1], r[q, q+1] = t_r_12(s, s.waveguides[q], s.waveguides[q+1], G_12, G_21)
+        t[q+1, q], r[q+1, q] = t_r_12(s, s.waveguides[q+1], s.waveguides[q], G_21, G_12)
 
         P_qr = P_q(g1.length, g1, s.n_modes[q])
         P_ql = P_qr
@@ -218,17 +218,22 @@ function G_12_21(g1::Waveguide, g2::Waveguide, n_modes1, n_modes2)
     (G_12, G_21)
 end
 
-function t_r_12(s::WaveguideSetup, G_12, G_21)
-    t = 2 .* inv(transpose(G_21) .+ G_12)
-    #r = 0.5 .* (transpose(G_21) .- G_12) * t
-    #return (t, r)
-    r = Matrix{ComplexF64}(undef, s.n_total, s.n_total)
-    for n=1:s.n_total, m=1:s.n_total
-        S = 0
-        for j=1:s.n_total
-            S += (n > s.n_TE ? 1 : -1) * (G_21[j, n] - G_12[n, j]) * t[j, m]
-        end
-        r[n, m] = 0.5 * S
+function t_r_12(s::WaveguideSetup, g1, g2, G_12, G_21)
+    lb1, hb1, _ = intersect(g1, g1)
+    lb2, hb2, _ = intersect(g2, g2)
+    boundary_enlargement = any(lb2 .< lb1) || any(hb2 .> hb1)
+    G = boundary_enlargement ? G_12 : G_21
+    tG = transpose(G)
+    r = get_region(s, g1.z+1e-6)
+    S1 = Diagonal([mode_from_nr(g1, i, s.n_modes[r]) isa TEMode ? 1 : -1
+                   for i=1:s.n_modes[r]])
+    if boundary_enlargement
+        t = 2 * inv(I + tG * G) * tG
+        r = S1 * (I - G * t)
+        return (t, r)
+    else
+        t = 2 * inv(I + G * tG) * G
+        r = S1 * (tG * t - I)
+        return (t, r)
     end
-    (t, r)
 end
