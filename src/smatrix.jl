@@ -119,8 +119,8 @@ function t_r_ab(s::WaveguideSetup)
 
     t = Array{Matrix{ComplexF64}}(undef, n, n)
     r = Array{Matrix{ComplexF64}}(undef, n, n)
-    t[1, 2], r[1, 2] = t_r_12(s, g1, g2, G_12, G_21)
-    t[2, 1], r[2, 1] = t_r_12(s, g2, g1, G_21, G_12)
+    t[1, 2], r[1, 2] = t_r_12(s, 1, 2, G_12, G_21)
+    t[2, 1], r[2, 1] = t_r_12(s, 2, 1, G_21, G_12)
 
     if n == 2
         return (t, r)
@@ -134,8 +134,8 @@ function t_r_ab(s::WaveguideSetup)
         g1 = s.waveguides[q]
         g2 = s.waveguides[q+1]
         G_12, G_21 = G_12_21(g1, g2, s.n_modes[q], s.n_modes[q+1])
-        t[q, q+1], r[q, q+1] = t_r_12(s, s.waveguides[q], s.waveguides[q+1], G_12, G_21)
-        t[q+1, q], r[q+1, q] = t_r_12(s, s.waveguides[q+1], s.waveguides[q], G_21, G_12)
+        t[q, q+1], r[q, q+1] = t_r_12(s, q, q+1, G_12, G_21)
+        t[q+1, q], r[q+1, q] = t_r_12(s, q+1, q, G_21, G_12)
 
         P_qr = P_q(g1, s.n_modes[q])
         P_ql = P_qr
@@ -226,15 +226,16 @@ function G_12_21(g1::Waveguide, g2::Waveguide, n_modes1, n_modes2)
     (G_12, G_21)
 end
 
-function t_r_12(s::WaveguideSetup, g1, g2, G_12, G_21)
+function t_r_12(s::WaveguideSetup, r1, r2, G_12, G_21)
+    g1 = s.waveguides[r1]
+    g2 = s.waveguides[r2]
     lb1, hb1, _ = intersect(g1, g1)
     lb2, hb2, _ = intersect(g2, g2)
     boundary_enlargement = any(lb2 .< lb1) || any(hb2 .> hb1)
     G = boundary_enlargement ? G_12 : G_21
     tG = transpose(G)
-    r = get_region(s, g1.z+1e-6)
-    S1 = Diagonal([mode_from_nr(g1, i, s.n_modes[r]) isa TEMode ? 1 : -1
-                   for i=1:s.n_modes[r]])
+    S1 = Diagonal([mode_from_nr(g1, i, s.n_modes[r1]) isa TMMode ? -1. : 1.
+                   for i=1:s.n_modes[r1]])
     if boundary_enlargement
         t = 2 * inv(I + tG * G) * tG
         r = S1 * (I - G * t)
