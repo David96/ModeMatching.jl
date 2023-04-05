@@ -136,6 +136,7 @@ function t_r_ab(s::WaveguideSetup)
         P_qr = P_q(g1, s.n_modes[q])
         P_ql = P_qr
         A = r[q, 1] * P_ql * r[q, q+1] * P_qr
+        @assert all(abs.(eigvals(A)) .< 1) "S matrix formalism not valid, Eigenvalues > 1!"
         tmp_inv = inv(I - A)
         r[1, q+1] = r[1, q] + t[q, 1] * P_ql * r[q, q+1] * P_qr * tmp_inv * t[1, q]
         t[1, q+1] = t[q, q+1] * P_qr * tmp_inv * t[1, q]
@@ -149,6 +150,7 @@ function t_r_ab(s::WaveguideSetup)
         P_qr = P_q(g1, s.n_modes[q])
         P_ql = P_qr
         A = r[q, q-1] * P_ql * r[q, n] * P_qr
+        @assert all(abs.(eigvals(A)) .< 1) "S matrix formalism not valid, Eigenvalues > 1!"
         tmp_inv = inv(I - A)
         r[q-1, n] = r[q-1, q] + t[q, q-1] * P_ql * r[q, n] * P_qr * tmp_inv * t[q-1, q]
         t[q-1, n] = t[q, n] * P_qr * tmp_inv * t[q-1, q]
