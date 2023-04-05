@@ -126,10 +126,6 @@ function t_r_ab(s::WaveguideSetup)
         return (t, r)
     end
 
-    G_nr, G_nl = G_12_21(s.waveguides[end-1], s.waveguides[end], s.n_modes[end-1], s.n_modes[end])
-    t[n-1, n], r[n-1, n] = t_r_12(s, s.waveguides[end-1], s.waveguides[end], G_nr, G_nl)
-    t[n, n-1], r[n, n-1] = t_r_12(s, s.waveguides[end], s.waveguides[end-1], G_nl, G_nr)
-
     for q=2:n-1
         g1 = s.waveguides[q]
         g2 = s.waveguides[q+1]
@@ -200,7 +196,6 @@ function calc_b_i(s::WaveguideSetup, t_ab, r_ab)
         n = s.n_layers
         b_qs[1] = r_ab[1, n] * aprime_1
         for q=2:n-1
-            d_q = s.waveguides[q].length
             P_qr = P_q(s.waveguides[q], s.n_modes[q])
             P_ql = P_qr
             b_qs[q] = inv(I - r_ab[q, n] * P_qr * r_ab[q, 1] * P_ql) *
