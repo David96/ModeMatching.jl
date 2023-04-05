@@ -111,7 +111,7 @@ end
 function t_r_ab(s::WaveguideSetup)
     n = length(s.waveguides)
     if n == 1
-        return [Diagonal(fill(1, s.n_total)), zeros(s.n_total, s.n_total)]
+        return [Diagonal(fill(1, s.n_modes[1])), zeros(s.n_modes[1], s.n_modes[1])]
     end
     g1 = s.waveguides[1]
     g2 = s.waveguides[2]
