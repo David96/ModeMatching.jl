@@ -104,7 +104,7 @@ function P_q(g, n_modes)
     Diagonal([
         begin
             m = mode_from_nr(g, mode, n_modes)
-            is_propagating(g, m) ? propagation(g, m, fwd, g.z + g.length) : ComplexF64(0)
+            propagation(g, m, fwd, g.z + g.length)
         end for mode=1:(n_modes)])
 end
 
