@@ -47,6 +47,10 @@ function mode_from_nr(g::RectangularWaveguide, nr, n_total)
     end
 end
 
+function integral_deps(g::RectangularWaveguide, _)
+    (g.a, g.b)
+end
+
 k_c(g::RectangularWaveguide, mode::Mode) = sqrt((mode.m * π/g.a)^2 + (mode.n * π/g.b)^2)
 
 "Returns (lower bound, higher bound, mask) of the intersection between two waveguides"

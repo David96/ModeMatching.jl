@@ -49,6 +49,10 @@ function contains(g::GaussianBeam, ρ, φ, z)
 end
 jacobi_det(_::GaussianBeam, ρ, φ, z) = ρ
 
+function integral_deps(g::GaussianBeam, z)
+    (g, z)
+end
+
 w(g::GaussianBeam, z) = g.w_0 * sqrt(1 + (z / g.z_R)^2)
 Rinv(g::GaussianBeam, z) = z / (g.z_R^2 + z^2)
 ψ(g::GaussianBeam, z, mode::TEMMode) = (abs(mode.l)+2*mode.p + 1) * atan(z/g.z_R)

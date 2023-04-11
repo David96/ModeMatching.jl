@@ -40,7 +40,11 @@ function intersect(g1::CylindricalWaveguide, g2::CylindricalWaveguide)
 end
 
 function contains(g::CylindricalWaveguide, ρ, φ, z)
-    return ρ <= g.r
+    return ρ <= g.r && g.z <= z < g.z + g.length
+end
+
+function integral_deps(g::CylindricalWaveguide, _)
+    g.r
 end
 
 jacobi_det(_::CylindricalWaveguide, ρ, φ, z) = ρ
