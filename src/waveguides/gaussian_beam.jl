@@ -60,32 +60,32 @@ L(α, n, x) = Laguerre{α}(vcat(zeros(n), 1))(x)
 
 β(g::GaussianBeam, _::Mode, dir::Direction) = Int(dir) * g.k
 
+_A(g::GaussianBeam, ρ, φ, z, m::TEMMode, dir::Direction) = 1/w(g, z) *
+        (ρ*sqrt(2)/w(g, z))^(abs(m.l)) *
+        exp(-ρ^2/w(g, z)^2) *
+        L(abs(m.l), m.p, 2*ρ^2/w(g, z)^2) *
+        exp(-j * β(g, m, dir) * ρ^2 * Rinv(g, z) / 2) *
+        exp(-j * m.l * φ) *
+        exp(j*ψ(g, z, m))
+
 E_spatial(g::GaussianBeam, ρ, φ, z, mode::TEMMode, dir::Direction) = begin
     z_rel = z - (dir == fwd ? (g.z + g.z_0) : (g.z + g.z_0 + g.length))
     @SVector [
-        0,
-        1 / w(g, z_rel) *
-          (ρ * sqrt(2) / w(g, z_rel))^(abs(mode.l)) * exp(-ρ^2/w(g, z_rel)^2) *
-          L(abs(mode.l), mode.p, (2*ρ^2 / w(g, z_rel)^2) *
-          exp(-1im * g.k * ρ^2 * 2 * Rinv(g, z_rel))) *
-          exp(-1im*mode.l*φ) * exp(1im*ψ(g, z_rel, mode)),
+        (g.μ / g.ε)^(1//4) * _A(g, ρ, φ, z_rel, mode, dir) * sin(φ),
+        (g.μ / g.ε)^(1//4) * _A(g, ρ, φ, z_rel, mode, dir) * cos(φ),
         0,
     ]
 end
-E_freq(_::GaussianBeam, _::TEMMode, _::Direction) = [0, 1, 0]
+E_freq(_::GaussianBeam, _::TEMMode, _::Direction) = [1, 1, 0]
 
 
 H_spatial(g::GaussianBeam, ρ, φ, z, mode::TEMMode, dir::Direction) = begin
     z_rel = z - (dir == fwd ? (g.z + g.z_0) : (g.z + g.z_0 + g.length))
     @SVector [
-        -sqrt(g.ε / g.μ) / w(g, z_rel) *
-          (ρ * sqrt(2) / w(g, z_rel))^(abs(mode.l)) * exp(-ρ^2/w(g, z_rel)^2) *
-          L(abs(mode.l), mode.p, (2 * ρ^2 / w(g, z_rel)^2) *
-          exp(-1im * g.k * ρ^2 * 2 * Rinv(g, z_rel))) *
-          exp(-1im*mode.l*φ) * exp(1im*ψ(g, z_rel, mode)),
-        0,
+        -(g.ε / g.μ)^(1//4) * _A(g, ρ, φ, z_rel, mode, dir) * cos(φ),
+        (g.ε / g.μ)^(1//4) * _A(g, ρ, φ, z_rel, mode, dir) * sin(φ),
         0
     ]
 end
 
-H_freq(_::GaussianBeam, _::TEMMode, _::Direction) = [1, 0, 0]
+H_freq(_::GaussianBeam, _::TEMMode, _::Direction) = [1, 1, 0]
