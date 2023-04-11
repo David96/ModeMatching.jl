@@ -1,5 +1,6 @@
 module ModeMatching
 
+include("util/bessel_functions.jl")
 include("waveguide.jl")
 include("waveguides/rectangular_waveguide.jl")
 include("waveguides/cylindrical_waveguide.jl")
