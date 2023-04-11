@@ -108,11 +108,6 @@ function C(g::Waveguide, mode::Mode)
     unlock(lockCs)
     Cs[h]
 end
-function C(g::Waveguide, mode::Mode, lb_inner, hb_inner)
-    s_outer = scalar(g, g, 0, mode, mode; norm=false)
-    s_inner = scalar(g, g, 0, lb_inner, hb_inner, (x, y) -> 1, mode, mode; norm=false)
-    1 / sqrt(Complex(s_outer - s_inner))
-end
 
 β(g::Waveguide, mode::Mode, dir::Direction) = Int(dir) * conj(sqrt(Complex(g.k^2 - k_c(g, mode)^2)))
 f_c(g::Waveguide, mode::Mode) = k_c(g, mode) / (2π * sqrt(g.μ * g.ε))

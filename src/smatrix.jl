@@ -40,7 +40,6 @@ function get_region(setup::WaveguideSetup, z)
     NaN
 end
 
-const z_pm = -1
 function Es_right(s::WaveguideSetup, region, a_i, x, y, z)
     g = s.waveguides[region]
     [a_i[region][mode] .*
@@ -50,7 +49,7 @@ end
 function Es_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
     [b_i[region][mode] .*
-     (E(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), bck)#= .* [1, 1, -1]=#)
+     E(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), bck)
      for mode=1:s.n_modes[region]]
 end
 function E_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
@@ -79,7 +78,7 @@ end
 function Hs_left(s::WaveguideSetup, region, b_i, x, y, z)
     g = s.waveguides[region]
     [b_i[region][mode] .*
-     (H(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), bck)#= .* [-1, -1, 1]=#)
+     H(g, x, y, z, mode_from_nr(g, mode, s.n_modes[region]), bck)
      for mode=1:s.n_modes[region]]
 end
 function H_tot(s::WaveguideSetup, r, a_i, b_i, x, y, z)
