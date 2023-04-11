@@ -52,12 +52,14 @@ jacobi_det(_::CylindricalWaveguide, ρ, φ, z) = ρ
 k_c(g::CylindricalWaveguide, mode::TEMode) = besselj_prime_zero(mode.m, mode.n) / g.r
 k_c(g::CylindricalWaveguide, mode::TMMode) = besselj_zero(mode.m, mode.n) / g.r
 
+const P = 1
+
 #
 # TE Modes
 #
 E_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TEMode, _::Direction) = @SVector [
-    cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
-    sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
+    (P * cos(mode.m * φ) - (1 - P) * sin(mode.m * φ)) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
+    (P * sin(mode.m * φ) + (1 - P) * cos(mode.m * φ)) * besselj_prime(mode.m, k_c(g, mode) * ρ),
     0
 ]
 E_freq(g::CylindricalWaveguide, mode::TEMode, _::Direction) = @SVector [
@@ -66,9 +68,9 @@ E_freq(g::CylindricalWaveguide, mode::TEMode, _::Direction) = @SVector [
     0
 ]
 H_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TEMode, _::Direction) = @SVector [
-    sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
-    cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
-    sin(mode.m * φ) * besselj(mode.m, k_c(g, mode) * ρ)
+    (P * sin(mode.m * φ) + (1 - P) * cos(mode.m * φ)) * besselj_prime(mode.m, k_c(g, mode) * ρ),
+    (P * cos(mode.m * φ) - (1 - P) * sin(mode.m * φ)) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
+    (P * sin(mode.m * φ) + (1 - P) * cos(mode.m * φ)) * besselj(mode.m, k_c(g, mode) * ρ)
 ]
 H_freq(g::CylindricalWaveguide, mode::TEMode, dir::Direction) = @SVector [
     -j * β(g, mode, dir) / k_c(g, mode),
@@ -80,9 +82,9 @@ H_freq(g::CylindricalWaveguide, mode::TEMode, dir::Direction) = @SVector [
 # TM Modes
 #
 E_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TMMode, _::Direction) = @SVector [
-    sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
-    cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
-    sin(mode.m * φ) * besselj(mode.m, k_c(g, mode) * ρ)
+    (P * sin(mode.m * φ) + (1 - P) * cos(mode.m * φ)) * besselj_prime(mode.m, k_c(g, mode) * ρ),
+    (P * cos(mode.m * φ) - (1 - P) * sin(mode.m * φ)) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
+    (P * sin(mode.m * φ) + (1 - P) * cos(mode.m * φ)) * besselj(mode.m, k_c(g, mode) * ρ)
 ]
 E_freq(g::CylindricalWaveguide, mode::TMMode, dir::Direction) = @SVector [
     -j * β(g, mode, dir) / k_c(g, mode),
@@ -90,8 +92,8 @@ E_freq(g::CylindricalWaveguide, mode::TMMode, dir::Direction) = @SVector [
     1
 ]
 H_spatial(g::CylindricalWaveguide, ρ, φ, _, mode::TMMode, _::Direction) = @SVector [
-    cos(mode.m * φ) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
-    sin(mode.m * φ) * besselj_prime(mode.m, k_c(g, mode) * ρ),
+    (P * cos(mode.m * φ) - (1 - P) * sin(mode.m * φ)) / ρ * besselj(mode.m, k_c(g, mode) * ρ),
+    (P * sin(mode.m * φ) + (1 - P) * cos(mode.m * φ)) * besselj_prime(mode.m, k_c(g, mode) * ρ),
     0
 ]
 H_freq(g::CylindricalWaveguide, mode::TMMode, _::Direction) = @SVector [
