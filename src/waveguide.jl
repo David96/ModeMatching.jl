@@ -82,10 +82,10 @@ function scalar(g1::Waveguide, g2::Waveguide, z, lb, hb, mask, mode1::Mode, mode
     end
     h = hash((integral_deps(g1, z), integral_deps(g2, z)), hash((mode1, mode2)))
     if !(h in keys(integrals))
+        I1 = int_ExHy(g1, g2, lb, hb, mask, z, mode1, mode2)
+        I2 = int_EyHx(g1, g2, lb, hb, mask, z, mode1, mode2)
         lock(Slock)
         if !(h in keys(integrals))
-            I1 = int_ExHy(g1, g2, lb, hb, mask, z, mode1, mode2)
-            I2 = int_EyHx(g1, g2, lb, hb, mask, z, mode1, mode2)
             integrals[h] = (I1, I2)
         end
         unlock(Slock)
